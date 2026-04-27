@@ -801,7 +801,7 @@
 // ============================================================
 const SPOTIFY_CLIENT_ID = '8791a946e68c476cac41c3d5023a86a7'; // <-- Replace this
 const REDIRECT_URI = window.location.href.split('?')[0].split('#')[0];
-const SCOPES = 'playlist-read-private playlist-read-collaborative';
+const SCOPES = 'playlist-read-private playlist-read-collaborative user-library-read';
 
 // ============================================================
 //  STATE
@@ -923,7 +923,7 @@ async function loadPlaylist() {
 
   try {
     let tracks = [];
-    let next = `https://api.spotify.com/v1/playlists/${id}/tracks?limit=50&fields=next,items(track(name,artists))`;
+    let next = `https://api.spotify.com/v1/playlists/${id}/tracks?limit=50`;
     while (next) {
       const res  = await fetch(next, { headers:{ Authorization:'Bearer '+accessToken } });
       if (res.status === 401) { accessToken = null; document.getElementById('authModal').classList.add('show'); return; }
