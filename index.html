@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>En Una Nota</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #050905;
+    --surface:  #0d120d;
+    --surface2: #141f14;
+    --surface3: #1a2a1a;
+    --green:    #39ff6e;
+    --green2:   #1db954;
+    --green3:   #0a4f1e;
+    --green-dim:#1a3d1a;
+    --text:     #e8f5e8;
+    --muted:    #4a6b4a;
+    --border:   #1e2e1e;
+    --danger:   #ff4444;
+  }
+
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* scanline texture */
+  body::after {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.07) 2px,
+      rgba(0,0,0,0.07) 4px
+    );
+    pointer-events:none;
+    z-index:9999;
+  }
+
+  /* glow blob */
+  body::before {
+    content:'';
+    position:fixed;
+    top:-20vh; left:50%;
+    transform:translateX(-50%);
+    width:70vw; height:50vh;
+    background: radial-gradient(ellipse, rgba(57,255,110,0.06) 0%, transparent 70%);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .screen { display:none; min-height:100vh; position:relative; z-index:1; }
+  .screen.active { display:flex; flex-direction:column; }
+
+  /* ========== SETUP ========== */
+  #setup {
+    align-items:center;
+    justify-content:center;
+    padding: 40px 20px;
+    gap: 32px;
+  }
+
+  .logo {
+    text-align:center;
+  }
+  .logo h1 {
+    font-family:'Syne', sans-serif;
+    font-weight:800;
+    font-size: clamp(42px,9vw,100px);
+    letter-spacing:-2px;
+    line-height:0.9;
+    color: var(--green);
+    text-shadow: 0 0 40px rgba(57,255,110,0.4), 0 0 80px rgba(57,255,110,0.15);
+  }
+  .logo h1 span { color: var(--text); }
+  .logo sub {
+    display:block;
+    font-size:11px;
+    letter-spacing:5px;
+    color:var(--muted);
+    text-transform:uppercase;
+    margin-top:10px;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius:16px;
+    padding: 32px;
+    width:100%;
+    max-width:580px;
+  }
+
+  .panel-title {
+    font-family:'Syne',sans-serif;
+    font-size:13px;
+    letter-spacing:4px;
+    text-transform:uppercase;
+    color:var(--green);
+    margin-bottom:18px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .panel-title::after {
+    content:'';
+    flex:1;
+    height:1px;
+    background:var(--border);
+  }
+
+  .player-row {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:8px;
+  }
+
+  .player-row input {
+    flex:1;
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:11px 14px;
+    color:var(--text);
+    font-family:'Space Mono',monospace;
+    font-size:13px;
+    outline:none;
+    transition:border-color 0.2s;
+  }
+  .player-row input:focus { border-color:var(--green); }
+
+  .p-color {
+    width:10px; height:10px;
+    border-radius:50%;
+    flex-shrink:0;
+  }
+
+  .icon-btn {
+    background:none;
+    border:1px solid var(--border);
+    border-radius:6px;
+    color:var(--muted);
+    cursor:pointer;
+    padding:6px 9px;
+    font-size:14px;
+    transition:all 0.15s;
+  }
+  .icon-btn:hover { border-color:var(--danger); color:var(--danger); }
+
+  .ghost-btn {
+    background:var(--surface2);
+    border:1px dashed var(--border);
+    border-radius:8px;
+    padding:10px;
+    color:var(--muted);
+    cursor:pointer;
+    font-family:'Space Mono',monospace;
+    font-size:12px;
+    width:100%;
+    margin-top:4px;
+    transition:all 0.2s;
+  }
+  .ghost-btn:hover { border-color:var(--green); color:var(--green); }
+
+  .sep { height:1px; background:var(--border); margin:24px 0; }
+
+  .spotify-row {
+    display:flex;
+    gap:8px;
+    margin-bottom:12px;
+  }
+  .spotify-row input {
+    flex:1;
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:11px 14px;
+    color:var(--text);
+    font-family:'Space Mono',monospace;
+    font-size:13px;
+    outline:none;
+    transition:border-color 0.2s;
+  }
+  .spotify-row input:focus { border-color:var(--green2); }
+
+  .sp-btn {
+    background:var(--green2);
+    color:#000;
+    border:none;
+    border-radius:8px;
+    padding:11px 18px;
+    font-family:'Syne',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:1px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:all 0.15s;
+  }
+  .sp-btn:hover { filter:brightness(1.15); }
+  .sp-btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+  .track-list {
+    max-height:160px;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    margin-top:8px;
+  }
+  .track-item {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:7px 10px;
+    background:var(--surface2);
+    border-radius:6px;
+    font-size:12px;
+    color:var(--muted);
+  }
+  .track-item .track-num { color:var(--green3); width:20px; text-align:right; flex-shrink:0; }
+  .track-item .track-name { color:var(--text); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .track-item .track-artist { color:var(--muted); white-space:nowrap; }
+
+  .sp-status {
+    font-size:11px;
+    color:var(--muted);
+    margin-top:6px;
+    min-height:16px;
+  }
+  .sp-status.ok { color:var(--green2); }
+  .sp-status.err { color:var(--danger); }
+
+  .sp-auth-note {
+    font-size:11px;
+    color:var(--muted);
+    line-height:1.6;
+    margin-top:10px;
+    padding:10px;
+    background:var(--surface2);
+    border-radius:8px;
+    border-left:3px solid var(--green3);
+  }
+
+  .btn-start {
+    background:var(--green);
+    color:#000;
+    border:none;
+    border-radius:10px;
+    padding:18px;
+    font-family:'Syne',sans-serif;
+    font-weight:800;
+    font-size:20px;
+    letter-spacing:3px;
+    cursor:pointer;
+    width:100%;
+    margin-top:28px;
+    transition:all 0.15s;
+    box-shadow:0 0 30px rgba(57,255,110,0.25);
+    text-transform:uppercase;
+  }
+  .btn-start:hover { box-shadow:0 0 50px rgba(57,255,110,0.45); transform:translateY(-2px); }
+  .btn-start:active { transform:translateY(0); }
+
+  /* ========== GAME ========== */
+  #game {
+    padding:28px;
+    gap:22px;
+  }
+
+  .game-header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-shrink:0;
+  }
+
+  .g-logo {
+    font-family:'Syne',sans-serif;
+    font-weight:800;
+    font-size:22px;
+    color:var(--green);
+    letter-spacing:-0.5px;
+    text-shadow:0 0 20px rgba(57,255,110,0.5);
+  }
+
+  .round-badge {
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:7px 16px;
+    font-size:12px;
+    color:var(--muted);
+    letter-spacing:2px;
+  }
+  .round-badge b { color:var(--green); }
+
+  /* SCOREBOARD */
+  .scoreboard {
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    flex-shrink:0;
+  }
+
+  .score-card {
+    flex:1;
+    min-width:100px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px 14px;
+    text-align:center;
+    transition:all 0.3s;
+    position:relative;
+    overflow:hidden;
+  }
+  .score-card::before {
+    content:'';
+    position:absolute;
+    top:0; left:0; right:0;
+    height:2px;
+    background:var(--card-color, var(--border));
+    opacity:0.6;
+  }
+  .score-card.lit {
+    border-color:var(--card-color, var(--green));
+    box-shadow:0 0 24px rgba(57,255,110,0.2);
+    animation:cardPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes cardPop {
+    from { transform:scale(0.94); }
+    to   { transform:scale(1); }
+  }
+
+  .sc-name {
+    font-size:12px;
+    color:var(--muted);
+    letter-spacing:1px;
+    margin-bottom:6px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .sc-score {
+    font-family:'Syne',sans-serif;
+    font-weight:800;
+    font-size:42px;
+    line-height:1;
+    color:var(--card-color, var(--green));
+    text-shadow:0 0 20px var(--card-color, rgba(57,255,110,0.5));
+  }
+
+  /* SONG PLAYER */
+  .song-player {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:22px;
+    flex-shrink:0;
+  }
+
+  .now-playing {
+    font-size:12px;
+    color:var(--muted);
+    letter-spacing:3px;
+    text-transform:uppercase;
+    margin-bottom:14px;
+  }
+  .now-playing span { color:var(--green); }
+
+  .queue-scroll {
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    padding-bottom:10px;
+    margin-bottom:16px;
+    scrollbar-width:thin;
+    scrollbar-color:var(--border) transparent;
+  }
+
+  .q-chip {
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:100px;
+    padding:6px 14px;
+    font-size:11px;
+    color:var(--muted);
+    white-space:nowrap;
+    cursor:pointer;
+    transition:all 0.15s;
+    flex-shrink:0;
+  }
+  .q-chip:hover { border-color:var(--green); color:var(--green); }
+  .q-chip.active { background:var(--green3); border-color:var(--green); color:var(--green); }
+  .q-chip.done { text-decoration:line-through; opacity:0.35; }
+
+  .controls-row {
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+
+  .dur-sel {
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px 12px;
+    color:var(--text);
+    font-family:'Space Mono',monospace;
+    font-size:12px;
+    outline:none;
+    cursor:pointer;
+  }
+
+  .c-btn {
+    border:none;
+    border-radius:8px;
+    padding:10px 22px;
+    font-family:'Syne',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:1px;
+    cursor:pointer;
+    transition:all 0.15s;
+  }
+  .c-btn.play { background:var(--green); color:#000; box-shadow:0 0 20px rgba(57,255,110,0.3); }
+  .c-btn.play:hover { box-shadow:0 0 35px rgba(57,255,110,0.5); transform:translateY(-1px); }
+  .c-btn.play:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+  .c-btn.stop { background:var(--surface3); color:var(--muted); border:1px solid var(--border); }
+  .c-btn.stop:hover { border-color:var(--danger); color:var(--danger); }
+  .c-btn.next { background:var(--surface3); color:var(--green); border:1px solid var(--green3); }
+  .c-btn.next:hover { background:var(--green3); }
+
+  /* STATUS */
+  .status-bar {
+    text-align:center;
+    font-size:12px;
+    color:var(--muted);
+    letter-spacing:2px;
+    padding:4px;
+    transition:color 0.3s;
+  }
+  .status-bar.play { color:var(--green); }
+  .status-bar.buzz { color:var(--green); animation:blink 1s step-end infinite; }
+  @keyframes blink { 50%{opacity:0.4} }
+
+  /* RESULT OVERLAY */
+  .overlay {
+    position:fixed; inset:0;
+    background:rgba(5,9,5,0.92);
+    backdrop-filter:blur(12px);
+    z-index:200;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:20px;
+    padding:40px;
+  }
+  .overlay.show { display:flex; }
+
+  .result-box {
+    background:var(--surface);
+    border:1px solid var(--green);
+    border-radius:20px;
+    padding:48px 56px;
+    text-align:center;
+    max-width:460px;
+    width:100%;
+    box-shadow:0 0 80px rgba(57,255,110,0.2), inset 0 0 60px rgba(57,255,110,0.03);
+    animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes popIn {
+    from { transform:scale(0.6) translateY(40px); opacity:0; }
+    to   { transform:scale(1) translateY(0); opacity:1; }
+  }
+
+  .result-tag {
+    font-size:11px;
+    letter-spacing:5px;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:10px;
+  }
+
+  .result-name {
+    font-family:'Syne',sans-serif;
+    font-weight:800;
+    font-size:clamp(36px,8vw,64px);
+    letter-spacing:-1px;
+    line-height:1;
+    margin-bottom:6px;
+  }
+
+  .result-song {
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:32px;
+    font-style:italic;
+  }
+
+  .result-btns {
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+
+  .r-btn {
+    border:none;
+    border-radius:10px;
+    padding:13px 26px;
+    font-family:'Syne',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    letter-spacing:1px;
+    cursor:pointer;
+    transition:all 0.15s;
+  }
+  .r-btn.correct { background:var(--green); color:#000; box-shadow:0 0 25px rgba(57,255,110,0.35); }
+  .r-btn.correct:hover { box-shadow:0 0 40px rgba(57,255,110,0.5); transform:translateY(-2px); }
+  .r-btn.wrong { background:var(--danger); color:#fff; }
+  .r-btn.wrong:hover { filter:brightness(1.15); transform:translateY(-2px); }
+  .r-btn.skip { background:var(--surface2); color:var(--muted); border:1px solid var(--border); }
+  .r-btn.skip:hover { border-color:var(--muted); color:var(--text); }
+
+  /* BUZZ INPUT (host types who buzzed) */
+  .buzz-selector {
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    width:100%;
+    max-width:460px;
+  }
+  .buzz-selector p {
+    font-size:12px;
+    color:var(--muted);
+    letter-spacing:2px;
+    text-align:center;
+    text-transform:uppercase;
+  }
+  .buzz-player-btns {
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    justify-content:center;
+  }
+  .bp-btn {
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:var(--surface2);
+    padding:10px 20px;
+    font-family:'Space Mono',monospace;
+    font-size:13px;
+    cursor:pointer;
+    transition:all 0.15s;
+  }
+  .bp-btn:hover { border-color:var(--green); color:var(--green); }
+
+  /* WINNER SCREEN */
+  #winner {
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:40px;
+    gap:28px;
+  }
+  .winner-title {
+    font-family:'Syne',sans-serif;
+    font-weight:800;
+    font-size:clamp(14px,3vw,18px);
+    letter-spacing:6px;
+    color:var(--muted);
+    text-transform:uppercase;
+  }
+  .winner-name {
+    font-family:'Syne',sans-serif;
+    font-weight:800;
+    font-size:clamp(52px,12vw,120px);
+    letter-spacing:-3px;
+    line-height:0.9;
+    color:var(--green);
+    text-shadow:0 0 60px rgba(57,255,110,0.6), 0 0 120px rgba(57,255,110,0.2);
+    animation:winnerPulse 2s ease-in-out infinite;
+  }
+  @keyframes winnerPulse {
+    0%,100% { text-shadow:0 0 60px rgba(57,255,110,0.6), 0 0 120px rgba(57,255,110,0.2); }
+    50%      { text-shadow:0 0 100px rgba(57,255,110,0.9), 0 0 200px rgba(57,255,110,0.4); }
+  }
+  .winner-score {
+    font-size:18px;
+    color:var(--muted);
+    letter-spacing:3px;
+  }
+  .winner-podium {
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .podium-card {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:18px 24px;
+    text-align:center;
+    min-width:120px;
+  }
+  .podium-card .p-rank { font-size:24px; margin-bottom:4px; }
+  .podium-card .p-name { font-size:13px; color:var(--text); margin-bottom:4px; }
+  .podium-card .p-pts { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; color:var(--muted); }
+  .restart-btn {
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px 32px;
+    font-family:'Syne',sans-serif;
+    font-weight:700;
+    font-size:16px;
+    letter-spacing:2px;
+    color:var(--muted);
+    cursor:pointer;
+    transition:all 0.2s;
+    text-transform:uppercase;
+  }
+  .restart-btn:hover { border-color:var(--green); color:var(--green); }
+
+  /* SPOTIFY AUTH MODAL */
+  #authModal {
+    position:fixed; inset:0;
+    background:rgba(5,9,5,0.95);
+    z-index:500;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:20px;
+    padding:40px;
+  }
+  #authModal.show { display:flex; }
+  .auth-box {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:40px;
+    max-width:420px;
+    width:100%;
+    text-align:center;
+  }
+  .auth-box h2 {
+    font-family:'Syne',sans-serif;
+    font-size:22px;
+    color:var(--green2);
+    margin-bottom:12px;
+  }
+  .auth-box p {
+    font-size:13px;
+    color:var(--muted);
+    line-height:1.7;
+    margin-bottom:24px;
+  }
+  .auth-btn {
+    background:var(--green2);
+    color:#000;
+    border:none;
+    border-radius:100px;
+    padding:14px 32px;
+    font-family:'Syne',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    cursor:pointer;
+    transition:all 0.15s;
+  }
+  .auth-btn:hover { filter:brightness(1.15); transform:translateY(-2px); }
+
+  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup" class="screen active">
+  <div class="logo">
+    <h1>Adivina<span>La</span><br>Canción</h1>
+    <sub>V1.0</sub>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Jugadores</div>
+    <div id="playerList"></div>
+    <button class="ghost-btn" onclick="addPlayer()">+ Añadir Jugador</button>
+
+    <div class="sep"></div>
+
+    <div class="panel-title">Lista de Spotify</div>
+    <div class="spotify-row">
+      <input type="text" id="spUrl" placeholder="Pega la URL de la lista de Spotify..." />
+      <button class="sp-btn" id="loadBtn" onclick="loadPlaylist()">Cargar</button>
+    </div>
+    <div class="sp-status" id="spStatus"></div>
+    <div class="track-list" id="trackList"></div>
+    <div class="sp-auth-note">
+      ℹ️ Spotify requiere un inicio de sesión único para leer listas. Se te pedirá al hacer clic en Cargar.
+      Tus credenciales nunca se almacenan.
+    </div>
+
+    <button class="btn-start" onclick="startGame()">Comenzar Juego →</button>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="game" class="screen">
+  <div class="game-header">
+    <div class="g-logo">NTT</div>
+    <div class="round-badge">Ronda <b id="roundNum">1</b></div>
+    <button class="c-btn next" onclick="showWinner()">Terminar Juego</button>
+  </div>
+
+  <div class="scoreboard" id="scoreboard"></div>
+
+  <div class="song-player">
+    <div class="now-playing" id="nowPlaying">Selecciona una canción</div>
+    <div class="queue-scroll" id="queueRow"></div>
+    <div class="controls-row">
+      <select class="dur-sel" id="duration">
+        <option value="3">3 seg</option>
+        <option value="5" selected>5 seg</option>
+        <option value="8">8 seg</option>
+        <option value="10">10 seg</option>
+        <option value="15">15 seg</option>
+      </select>
+      <button class="c-btn play" id="playBtn" onclick="roundPlay()">▶ Reproducir</button>
+      <button class="c-btn stop" onclick="roundStop()">■ Parar</button>
+      <button class="c-btn next" onclick="nextRound()">→ Siguiente Ronda</button>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar">Listo — selecciona una canción y pulsa Reproducir</div>
+</div>
+
+<!-- WINNER -->
+<div id="winner" class="screen">
+  <div class="winner-title">🏆 Ganador</div>
+  <div class="winner-name" id="winnerName"></div>
+  <div class="winner-score" id="winnerScore"></div>
+  <div class="winner-podium" id="podium"></div>
+  <button class="restart-btn" onclick="location.reload()">Jugar de Nuevo</button>
+</div>
+
+<!-- RESULT OVERLAY -->
+<div class="overlay" id="overlay">
+  <div class="buzz-selector" id="buzzSelector">
+    <p>¿Quién pulsó el buzzer?</p>
+    <div class="buzz-player-btns" id="buzzBtns"></div>
+  </div>
+  <div class="result-box" id="resultBox" style="display:none">
+    <div class="result-tag">Buzzeó</div>
+    <div class="result-name" id="resultName">—</div>
+    <div class="result-song" id="resultSong"></div>
+    <div class="result-btns">
+      <button class="r-btn correct" onclick="awardPoint()">✓ Correcto +1</button>
+      <button class="r-btn wrong"   onclick="wrongAnswer()">✗ Incorrecto −1</button>
+      <button class="r-btn skip"    onclick="skipRound()">Saltar Ronda</button>
+    </div>
+  </div>
+</div>
+
+<!-- Spotify Auth Modal -->
+<div id="authModal">
+  <div class="auth-box">
+    <h2>Conectar con Spotify</h2>
+    <p>Para cargar tu lista de reproducción, necesitamos conectarnos a Spotify.<br>
+    Haz clic abajo para iniciar sesión — se abrirá una página de Spotify y volverás aquí automáticamente.</p>
+    <button class="auth-btn" onclick="doSpotifyAuth()">Iniciar sesión con Spotify</button>
+  </div>
+</div>
+
+<!-- Hidden YouTube for audio hint (fallback) -->
+<div id="ytWrap" style="position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;">
+  <div id="ytPlayer"></div>
+</div>
+
+<script>
+// ============================================================
+//  CONFIG — fill in your Spotify app credentials
+//  Get a free Client ID at https://developer.spotify.com/dashboard
+// ============================================================
+const SPOTIFY_CLIENT_ID = 'YOUR_CLIENT_ID_HERE'; // <-- Replace this
+const REDIRECT_URI = window.location.href.split('?')[0].split('#')[0];
+const SCOPES = 'playlist-read-private playlist-read-collaborative';
+
+// ============================================================
+//  STATE
+// ============================================================
+const GREEN_SHADES = [
+  '#39ff6e','#1db954','#5eff8a','#00cc4d',
+  '#a3ffbf','#0a8f3c','#22ff66','#80ffaa'
+];
+
+let players = [];
+let songs   = [];          // [{name, artist, played}]
+let round   = 1;
+let currentIdx   = null;   // active song index
+let currentBuzzer = null;
+let buzzLocked   = false;
+let stopTimer    = null;
+let disabledPlayers = new Set(); // wrong-answer exclusion
+
+let accessToken = null;
+
+// ============================================================
+//  SPOTIFY AUTH (PKCE)
+// ============================================================
+function generateCodeVerifier(len = 64) {
+  const arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode(...arr)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function generateCodeChallenge(verifier) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function doSpotifyAuth() {
+  const verifier   = generateCodeVerifier();
+  const challenge  = await generateCodeChallenge(verifier);
+  sessionStorage.setItem('sp_verifier', verifier);
+  sessionStorage.setItem('sp_pending_url', document.getElementById('spUrl').value);
+
+  const params = new URLSearchParams({
+    client_id:             SPOTIFY_CLIENT_ID,
+    response_type:         'code',
+    redirect_uri:          REDIRECT_URI,
+    scope:                 SCOPES,
+    code_challenge_method: 'S256',
+    code_challenge:        challenge,
+  });
+  window.location = 'https://accounts.spotify.com/authorize?' + params.toString();
+}
+
+async function exchangeCode(code) {
+  const verifier = sessionStorage.getItem('sp_verifier');
+  const body = new URLSearchParams({
+    client_id:     SPOTIFY_CLIENT_ID,
+    grant_type:    'authorization_code',
+    code,
+    redirect_uri:  REDIRECT_URI,
+    code_verifier: verifier,
+  });
+  const res  = await fetch('https://accounts.spotify.com/api/token', { method:'POST', body });
+  const data = await res.json();
+  return data.access_token;
+}
+
+async function handleAuthCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code   = params.get('code');
+  if (!code) return false;
+
+  // Clean URL
+  window.history.replaceState({}, '', window.location.pathname);
+
+  setSpStatus('🔑 Autenticando...', '');
+  try {
+    accessToken = await exchangeCode(code);
+    sessionStorage.removeItem('sp_verifier');
+    const pendingUrl = sessionStorage.getItem('sp_pending_url') || '';
+    sessionStorage.removeItem('sp_pending_url');
+    if (pendingUrl) document.getElementById('spUrl').value = pendingUrl;
+    setSpStatus('✓ Spotify conectado', 'ok');
+    await loadPlaylist();
+  } catch(e) {
+    setSpStatus('Autenticación fallida. Inténtalo de nuevo.', 'err');
+  }
+  return true;
+}
+
+// ============================================================
+//  PLAYLIST LOADING
+// ============================================================
+function extractPlaylistId(url) {
+  const m = url.match(/playlist\/([A-Za-z0-9]+)/);
+  return m ? m[1] : null;
+}
+
+async function loadPlaylist() {
+  const url = document.getElementById('spUrl').value.trim();
+  const id  = extractPlaylistId(url);
+  if (!id) { setSpStatus('URL de lista inválida', 'err'); return; }
+
+  // If client ID not set, show instructions
+  if (SPOTIFY_CLIENT_ID === 'YOUR_CLIENT_ID_HERE') {
+    setSpStatus('⚠️ Añade tu Client ID de Spotify en el código (ver instrucciones abajo).', 'err');
+    showClientIdInstructions();
+    return;
+  }
+
+  if (!accessToken) {
+    document.getElementById('authModal').classList.add('show');
+    return;
+  }
+
+  document.getElementById('authModal').classList.remove('show');
+  setSpStatus('Cargando lista...', '');
+  document.getElementById('loadBtn').disabled = true;
+
+  try {
+    let tracks = [];
+    let next = `https://api.spotify.com/v1/playlists/${id}/tracks?limit=50&fields=next,items(track(name,artists))`;
+    while (next) {
+      const res  = await fetch(next, { headers:{ Authorization:'Bearer '+accessToken } });
+      if (res.status === 401) { accessToken = null; document.getElementById('authModal').classList.add('show'); return; }
+      const data = await res.json();
+      for (const item of (data.items||[])) {
+        if (item.track?.name) tracks.push({ name: item.track.name, artist: item.track.artists?.[0]?.name || '', played: false });
+      }
+      next = data.next || null;
+    }
+
+    songs = tracks;
+    renderTrackList();
+    setSpStatus(`✓ ${songs.length} canciones cargadas`, 'ok');
+  } catch(e) {
+    setSpStatus('Error al cargar la lista. Revisa la URL y la autenticación.', 'err');
+  }
+  document.getElementById('loadBtn').disabled = false;
+}
+
+function renderTrackList() {
+  const list = document.getElementById('trackList');
+  list.innerHTML = '';
+  songs.slice(0, 50).forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'track-item';
+    div.innerHTML = `<span class="track-num">${i+1}</span><span class="track-name">${s.name}</span><span class="track-artist">${s.artist}</span>`;
+    list.appendChild(div);
+  });
+  if (songs.length > 50) {
+    const more = document.createElement('div');
+    more.className = 'track-item';
+    more.innerHTML = `<span class="track-num">…</span><span class="track-name" style="color:var(--muted)">+${songs.length-50} canciones más</span>`;
+    list.appendChild(more);
+  }
+}
+
+function setSpStatus(msg, cls) {
+  const el = document.getElementById('spStatus');
+  el.textContent = msg;
+  el.className = 'sp-status ' + cls;
+}
+
+function showClientIdInstructions() {
+  // Swap sp-auth-note to show steps
+  document.querySelector('.sp-auth-note').innerHTML = `
+    <b style="color:var(--green)">Pasos de configuración:</b><br>
+    1. Ve a <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:var(--green2)">developer.spotify.com/dashboard</a><br>
+    2. Crea una app gratuita → copia el <b>Client ID</b><br>
+    3. En ajustes de la app, añade <code style="color:var(--green)">${REDIRECT_URI}</code> como Redirect URI<br>
+    4. Abre este archivo HTML en un editor de texto y reemplaza <code>YOUR_CLIENT_ID_HERE</code> con tu Client ID
+  `;
+}
+
+// ============================================================
+//  SETUP
+// ============================================================
+function addPlayer(name = '') {
+  const i = players.length;
+  if (i >= 8) return;
+  players.push({ id: Date.now()+i, name, score:0, color: GREEN_SHADES[i % GREEN_SHADES.length] });
+  renderPlayerList();
+}
+
+function removePlayer(id) {
+  players = players.filter(p => p.id !== id);
+  renderPlayerList();
+}
+
+function renderPlayerList() {
+  const list = document.getElementById('playerList');
+  list.innerHTML = '';
+  players.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    row.innerHTML = `
+      <div class="p-color" style="background:${p.color}"></div>
+      <input type="text" placeholder="Jugador ${i+1}" value="${p.name}"
+             oninput="players[${i}].name=this.value" />
+      <button class="icon-btn" onclick="removePlayer(${p.id})">✕</button>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function startGame() {
+  players = players.map((p,i) => ({ ...p, name: p.name.trim() || `Jugador ${i+1}` }));
+  if (players.length < 2) { addPlayer(); addPlayer(); startGame(); return; }
+
+  document.getElementById('setup').classList.remove('active');
+  document.getElementById('game').classList.add('active');
+  renderScoreboard();
+  renderQueue();
+}
+
+// ============================================================
+//  GAME — SCOREBOARD
+// ============================================================
+function renderScoreboard() {
+  const sb = document.getElementById('scoreboard');
+  sb.innerHTML = '';
+  players.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'score-card';
+    card.id = `sc-${p.id}`;
+    card.style.setProperty('--card-color', p.color);
+    card.innerHTML = `<div class="sc-name">${p.name}</div><div class="sc-score">${p.score}</div>`;
+    sb.appendChild(card);
+  });
+}
+
+function flashCard(id) {
+  const c = document.getElementById(`sc-${id}`);
+  if (!c) return;
+  c.classList.remove('lit');
+  void c.offsetWidth;
+  c.classList.add('lit');
+}
+
+// ============================================================
+//  GAME — QUEUE
+// ============================================================
+function renderQueue() {
+  const row = document.getElementById('queueRow');
+  row.innerHTML = '';
+  if (!songs.length) {
+    row.innerHTML = '<span style="color:var(--muted);font-size:12px">Sin lista cargada — las canciones se reproducirán manualmente</span>';
+    return;
+  }
+  songs.forEach((s, i) => {
+    const chip = document.createElement('div');
+    chip.className = `q-chip${s.played?' done':''}${i===currentIdx?' active':''}`;
+    chip.textContent = s.name;
+    chip.onclick = () => selectSong(i);
+    row.appendChild(chip);
+  });
+}
+
+function selectSong(i) {
+  currentIdx = i;
+  const s = songs[i];
+  document.getElementById('nowPlaying').innerHTML =
+    `<span>${s.name}</span> · ${s.artist || '—'}`;
+  renderQueue();
+}
+
+// ============================================================
+//  GAME — ROUND CONTROL (host plays music separately on Spotify)
+// ============================================================
+function roundPlay() {
+  if (currentIdx === null && songs.length) selectSong(0);
+  const dur = parseInt(document.getElementById('duration').value) * 1000;
+  document.getElementById('playBtn').disabled = true;
+  setStatus('🎵 ¡Reproduciendo… escucha con atención!', 'play');
+  buzzLocked   = false;
+  disabledPlayers.clear();
+
+  // Auto-stop timer
+  clearTimeout(stopTimer);
+  stopTimer = setTimeout(() => {
+    document.getElementById('playBtn').disabled = false;
+    setStatus('⏸ Canción pausada — ¿quién la sabe?', '');
+  }, dur);
+}
+
+function roundStop() {
+  clearTimeout(stopTimer);
+  document.getElementById('playBtn').disabled = false;
+  setStatus('⏸ Parado — ¿quién la sabe?', '');
+}
+
+// ============================================================
+//  BUZZ FLOW
+// ============================================================
+function openOverlay() {
+  // Show player selector
+  const overlay = document.getElementById('overlay');
+  const btns    = document.getElementById('buzzBtns');
+  document.getElementById('buzzSelector').style.display = 'flex';
+  document.getElementById('resultBox').style.display     = 'none';
+  btns.innerHTML = '';
+  players.forEach(p => {
+    if (disabledPlayers.has(p.id)) return;
+    const btn = document.createElement('button');
+    btn.className = 'bp-btn';
+    btn.textContent = p.name;
+    btn.style.color = p.color;
+    btn.style.borderColor = p.color + '55';
+    btn.onclick = () => selectBuzzer(p);
+    btns.appendChild(btn);
+  });
+  overlay.classList.add('show');
+}
+
+function selectBuzzer(player) {
+  currentBuzzer = player;
+  document.getElementById('resultName').textContent  = player.name;
+  document.getElementById('resultName').style.color  = player.color;
+  const song = currentIdx !== null ? songs[currentIdx] : null;
+  document.getElementById('resultSong').textContent  = song ? `"${song.name}"` : '';
+  document.getElementById('buzzSelector').style.display = 'none';
+  document.getElementById('resultBox').style.display     = 'block';
+  flashCard(player.id);
+  setStatus(`⚡ ¡${player.name} ha buzzeado!`, 'buzz');
+  roundStop();
+}
+
+function awardPoint() {
+  if (!currentBuzzer) return;
+  players.find(p => p.id === currentBuzzer.id).score++;
+  renderScoreboard();
+  if (currentIdx !== null) songs[currentIdx].played = true;
+  nextRound();
+}
+
+function wrongAnswer() {
+  const p = players.find(p => p.id === currentBuzzer.id);
+  if (p) { p.score--; renderScoreboard(); }
+  disabledPlayers.add(currentBuzzer.id);
+  currentBuzzer = null;
+  document.getElementById('overlay').classList.remove('show');
+  // If all players used up, go next round
+  if (disabledPlayers.size >= players.length) {
+    nextRound();
+    return;
+  }
+  setStatus('✗ ¡Incorrecto! Los demás todavía pueden buzzear.', '');
+}
+
+function skipRound() {
+  if (currentIdx !== null) songs[currentIdx].played = true;
+  nextRound();
+}
+
+function nextRound() {
+  document.getElementById('overlay').classList.remove('show');
+  currentBuzzer = null;
+  buzzLocked    = false;
+  disabledPlayers.clear();
+  round++;
+  document.getElementById('roundNum').textContent = round;
+  // Auto-advance to next unplayed song
+  if (songs.length) {
+    const next = songs.findIndex((s,i) => i > (currentIdx??-1) && !s.played);
+    if (next !== -1) selectSong(next);
+  }
+  renderQueue();
+  setStatus('Listo — pulsa Reproducir para la siguiente ronda', '');
+  document.getElementById('playBtn').disabled = false;
+}
+
+function setStatus(msg, cls) {
+  const bar = document.getElementById('statusBar');
+  bar.textContent = msg;
+  bar.className   = 'status-bar ' + cls;
+}
+
+// Host manually triggers buzz overlay via keyboard or button
+document.addEventListener('keydown', e => {
+  if (document.getElementById('game').classList.contains('active')) {
+    if (e.code === 'Space' || e.code === 'Enter') {
+      e.preventDefault();
+      openOverlay();
+    }
+  }
+});
+
+// Big BUZZ button at bottom of game screen (added dynamically)
+document.getElementById('game').insertAdjacentHTML('beforeend', `
+  <button onclick="openOverlay()" style="
+    background:var(--green3);
+    border:2px solid var(--green);
+    border-radius:14px;
+    padding:18px;
+    color:var(--green);
+    font-family:'Syne',sans-serif;
+    font-weight:800;
+    font-size:18px;
+    letter-spacing:3px;
+    cursor:pointer;
+    width:100%;
+    text-transform:uppercase;
+    transition:all 0.15s;
+    box-shadow:0 0 30px rgba(57,255,110,0.15);
+    flex-shrink:0;
+  " onmouseover="this.style.boxShadow='0 0 50px rgba(57,255,110,0.35)'"
+    onmouseout="this.style.boxShadow='0 0 30px rgba(57,255,110,0.15)'">
+    ⚡ Alguien Buzzeó — Pulsa Espacio o Toca Aquí
+  </button>
+`);
+
+// ============================================================
+//  WINNER
+// ============================================================
+function showWinner() {
+  const sorted = [...players].sort((a,b) => b.score - a.score);
+  const winner = sorted[0];
+
+  document.getElementById('game').classList.remove('active');
+  document.getElementById('winner').classList.add('active');
+  document.getElementById('winnerName').textContent  = winner.name;
+  document.getElementById('winnerName').style.color  = winner.color;
+  document.getElementById('winnerScore').textContent = `${winner.score} puntos`;
+
+  const podium = document.getElementById('podium');
+  podium.innerHTML = '';
+  const medals = ['🥇','🥈','🥉'];
+  sorted.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'podium-card';
+    card.style.borderColor = p.color + '44';
+    card.innerHTML = `<div class="p-rank">${medals[i]||'🎵'}</div><div class="p-name">${p.name}</div><div class="p-pts" style="color:${p.color}">${p.score}</div>`;
+    podium.appendChild(card);
+  });
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+(async () => {
+  // Check for Spotify auth callback
+  await handleAuthCallback();
+  // Default players
+  addPlayer('Jugador 1');
+  addPlayer('Jugador 2');
+})();
+</script>
+</body>
+</html>
