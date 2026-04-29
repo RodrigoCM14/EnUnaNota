@@ -7,6 +7,15 @@ const crypto = require("crypto");
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
 const PUBLIC_URL = process.env.PUBLIC_URL || "";
+const SPOTIFY_SCOPES = [
+  "streaming",
+  "user-read-email",
+  "user-read-private",
+  "user-read-playback-state",
+  "user-modify-playback-state",
+  "playlist-read-private",
+  "playlist-read-collaborative"
+];
 
 const rooms = new Map();
 const clients = new Map();
@@ -122,6 +131,14 @@ function localAddresses() {
   return addresses;
 }
 
+function randomString(length) {
+  return crypto.randomBytes(Math.ceil(length / 2)).toString("hex").slice(0, length);
+}
+
+function base64Url(buffer) {
+  return buffer.toString("base64").replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
 async function handleApi(req, res, pathname, searchParams) {
   const roomId = searchParams.get("room") || "default";
   const room = getRoom(roomId);
@@ -144,9 +161,10 @@ async function handleApi(req, res, pathname, searchParams) {
     const origin = req.headers["x-forwarded-host"]
       ? `${req.headers["x-forwarded-proto"] || "https"}://${req.headers["x-forwarded-host"]}`
       : `http://${req.headers.host}`;
+    const publicOrigin = (PUBLIC_URL || origin).replace(/^http:\/\/(.+\.onrender\.com)$/i, "https://$1");
     sendJson(res, 200, {
       port: PORT,
-      origin: PUBLIC_URL || origin,
+      origin: publicOrigin,
       addresses: localAddresses(),
       room: publicRoom(room)
     });
@@ -159,6 +177,24 @@ async function handleApi(req, res, pathname, searchParams) {
   }
 
   const body = await readBody(req);
+
+  if (pathname === "/api/spotify-auth") {
+    const clientId = String(body.client_id || "").trim();
+    const redirectUri = String(body.redirect_uri || "").trim();
+    if (!clientId || !redirectUri) return sendJson(res, 400, { error: "Client ID y redirect URI requeridos" });
+
+    const verifier = randomString(96);
+    const challenge = base64Url(crypto.createHash("sha256").update(verifier).digest());
+    const auth = new URL("https://accounts.spotify.com/authorize");
+    auth.searchParams.set("response_type", "code");
+    auth.searchParams.set("client_id", clientId);
+    auth.searchParams.set("scope", SPOTIFY_SCOPES.join(" "));
+    auth.searchParams.set("code_challenge_method", "S256");
+    auth.searchParams.set("code_challenge", challenge);
+    auth.searchParams.set("redirect_uri", redirectUri);
+    sendJson(res, 200, { authUrl: auth.href, verifier });
+    return;
+  }
 
   if (pathname === "/api/spotify-token") {
     const grantType = String(body.grant_type || "");
