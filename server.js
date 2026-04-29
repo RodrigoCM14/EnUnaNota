@@ -117,6 +117,10 @@ function sendRedirect(res, location, extraHeaders = {}) {
   res.end();
 }
 
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function contentType(file) {
   const ext = path.extname(file).toLowerCase();
   return {
@@ -270,7 +274,7 @@ async function collectPlaylistTracks(session, firstUrl) {
   while (url) {
     summary.pages += 1;
     const page = await spotifyApi(session, url);
-    if (!page.ok) return { ok: false, status: page.status, data: page.data, endpoint: url, tracks, summary };
+    if (!page.ok) return { ok: false, status: page.status, data: page.data, endpoint: url, tracks, summary, attempts: page.attempts };
     for (const item of page.data.items || []) {
       summary.items += 1;
       if (!item?.track && !item?.uri) summary.nullTracks += 1;
@@ -305,18 +309,35 @@ async function spotifyApi(session, spotifyPath, options = {}) {
   if (!refreshed) {
     return { ok: false, status: 401, data: { error: { message: "Sesion Spotify no conectada" } } };
   }
-  const response = await fetch(`https://api.spotify.com/v1${spotifyPath}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${session.accessToken}`,
-      "Content-Type": "application/json",
-      ...(options.headers || {})
+  const maxAttempts = Number(options.retries || 3);
+  let lastResult = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let response;
+    try {
+      response = await fetch(`https://api.spotify.com/v1${spotifyPath}`, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        }
+      });
+    } catch (error) {
+      lastResult = { ok: false, status: 502, data: { error: { message: error.message || "No se pudo contactar Spotify" } }, attempts: attempt };
+      if (attempt < maxAttempts) await wait(350 * attempt);
+      continue;
     }
-  });
-  const data = response.status === 204 ? null : await response.json().catch(() => ({
-    error: { message: response.statusText || "Respuesta invalida de Spotify" }
-  }));
-  return { ok: response.ok, status: response.status, data };
+    const data = response.status === 204 ? null : await response.json().catch(() => ({
+      error: { message: response.statusText || "Respuesta invalida de Spotify" }
+    }));
+    lastResult = { ok: response.ok, status: response.status, data, attempts: attempt };
+    if (response.ok) return lastResult;
+    const retryable = response.status === 429 || response.status === 502 || response.status === 503 || response.status === 504;
+    if (!retryable || attempt >= maxAttempts) return lastResult;
+    const retryAfter = Number(response.headers.get("retry-after") || 0);
+    await wait(retryAfter > 0 ? retryAfter * 1000 : 450 * attempt);
+  }
+  return lastResult || { ok: false, status: 502, data: { error: { message: "Spotify no respondio" } }, attempts: 0 };
 }
 
 async function startSpotifyLogin(req, res, searchParams) {
@@ -464,6 +485,7 @@ async function handleApi(req, res, pathname, searchParams) {
       return sendJson(res, playlist.status, {
         error: playlist.data?.error?.message || "No se pudo leer la playlist",
         endpoint: `/playlists/${playlistId}?fields=name`,
+        attempts: playlist.attempts,
         spotify: playlist.data
       });
     }
@@ -474,6 +496,7 @@ async function handleApi(req, res, pathname, searchParams) {
       return sendJson(res, collected.status, {
         error: collected.data?.error?.message || "No se pudieron leer las canciones. En Development Mode, Spotify solo permite este endpoint para playlists propias o colaborativas y para usuarios autorizados en la app.",
         endpoint: collected.endpoint || primaryUrl,
+        attempts: collected.attempts,
         owner: playlist.data?.owner || null,
         currentUserId,
         collaborative: Boolean(playlist.data?.collaborative),
