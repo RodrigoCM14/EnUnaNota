@@ -293,21 +293,15 @@ async function loadPlaylist() {
     return;
   }
   localStorage.setItem("spotify_playlist_url", elements.playlistUrl.value);
-  let url = `/playlists/${id}/tracks?limit=100&market=from_token`;
-  const tracks = [];
-  let playlistName = "";
-  const playlist = await spotify(`/playlists/${id}?fields=name`);
-  playlistName = playlist.name || "Playlist";
-  while (url) {
-    const page = await spotify(url);
-    for (const item of page.items || []) {
-      if (item.track?.type === "track" && item.track.uri) tracks.push(item.track);
-    }
-    url = page.next ? page.next.replace("https://api.spotify.com/v1", "") : "";
+  const response = await fetch(`/api/spotify-playlist?id=${encodeURIComponent(id)}`);
+  const playlist = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
+  if (!response.ok) {
+    const endpoint = playlist.endpoint ? ` (${playlist.endpoint})` : "";
+    throw new Error(`Spotify playlist ${response.status}: ${playlist.error || "Forbidden"}${endpoint}`);
   }
-  playlistTracks = tracks;
-  await api("/api/round", { round: null, playlistName, clipSeconds: Number(elements.clipSeconds.value) });
-  setStatus(`${tracks.length} canciones cargadas. Reproduce una ronda para iniciar Spotify.`);
+  playlistTracks = playlist.tracks || [];
+  await api("/api/round", { round: null, playlistName: playlist.name || "Playlist", clipSeconds: Number(elements.clipSeconds.value) });
+  setStatus(`${playlistTracks.length} canciones cargadas. Reproduce una ronda para iniciar Spotify.`);
 }
 
 async function playRound() {
