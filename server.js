@@ -22,6 +22,16 @@ const rooms = new Map();
 const clients = new Map();
 const spotifyAuthStates = new Map();
 const spotifySessions = new Map();
+const oauthEvents = [];
+
+function logOAuth(event, details = {}) {
+  oauthEvents.unshift({
+    at: new Date().toISOString(),
+    event,
+    ...details
+  });
+  oauthEvents.length = Math.min(oauthEvents.length, 20);
+}
 
 function getRoom(id = "default") {
   if (!rooms.has(id)) {
@@ -119,8 +129,12 @@ function serveStatic(req, res, pathname) {
   const filePath = path.resolve(PUBLIC_DIR, route);
   const publicRoot = path.resolve(PUBLIC_DIR);
   if (filePath !== publicRoot && !filePath.startsWith(publicRoot + path.sep)) {
-    res.writeHead(403);
-    res.end("Forbidden");
+    logOAuth("static-forbidden", { pathname, route, filePath });
+    res.writeHead(302, {
+      Location: "/",
+      "Cache-Control": "no-store"
+    });
+    res.end();
     return;
   }
 
@@ -251,6 +265,7 @@ async function startSpotifyLogin(req, res, searchParams) {
     clientId
   });
   rememberSpotifyState(state, { verifier, clientId, redirectUri, sid, origin });
+  logOAuth("login-start", { origin, redirectUri, sid: sid.slice(0, 8) });
 
   const auth = new URL("https://accounts.spotify.com/authorize");
   auth.searchParams.set("response_type", "code");
@@ -273,12 +288,14 @@ async function finishSpotifyLogin(req, res, searchParams) {
   const appHome = `${origin}/`;
 
   if (error) {
+    logOAuth("callback-error", { error, state: state.slice(0, 8) });
     sendRedirect(res, `${appHome}?spotify=error&message=${encodeURIComponent(error)}`);
     return;
   }
 
   const code = searchParams.get("code") || "";
   if (!code || !remembered?.verifier) {
+    logOAuth("callback-expired", { hasCode: Boolean(code), state: state.slice(0, 8) });
     sendRedirect(res, `${appHome}?spotify=error&message=${encodeURIComponent("Sesion OAuth expirada")}`);
     return;
   }
@@ -293,6 +310,7 @@ async function finishSpotifyLogin(req, res, searchParams) {
   const result = await requestSpotifyToken(body);
   if (!result.ok || !result.token.access_token) {
     const detail = result.token.error_description || result.token.error || "No se pudo obtener token";
+    logOAuth("token-error", { status: result.status, detail });
     sendRedirect(res, `${appHome}?spotify=error&message=${encodeURIComponent(detail)}`);
     return;
   }
@@ -301,6 +319,7 @@ async function finishSpotifyLogin(req, res, searchParams) {
   session.clientId = remembered.clientId;
   saveSpotifyToken(session, result.token);
   spotifySessions.set(remembered.sid, session);
+  logOAuth("token-success", { sid: remembered.sid.slice(0, 8), expiresAt: session.expiresAt });
   sendRedirect(res, `${appHome}?spotify=connected`, {
     "Set-Cookie": spotifyCookie(remembered.sid, origin.startsWith("https://"))
   });
@@ -330,6 +349,16 @@ async function handleApi(req, res, pathname, searchParams) {
       origin: originFromRequest(req),
       addresses: localAddresses(),
       room: publicRoom(room)
+    });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/oauth-debug") {
+    const current = getSpotifySession(req);
+    sendJson(res, 200, {
+      hasSession: Boolean(current),
+      sessionConnected: Boolean(current?.session?.accessToken),
+      events: oauthEvents
     });
     return;
   }
