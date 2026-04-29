@@ -40,7 +40,7 @@ function getRoom(id = "default") {
       players: {},
       buzzes: [],
       round: null,
-      clipSeconds: 5,
+      clipSeconds: 10,
       playlistName: "",
       updatedAt: Date.now()
     });
