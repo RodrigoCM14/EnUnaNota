@@ -420,20 +420,25 @@ async function handleApi(req, res, pathname, searchParams) {
       });
     }
 
-    let url = `/playlists/${playlistId}/items?limit=50&additional_types=track&fields=items(track(name,uri,type,duration_ms,artists(name),album(images(url)))),next`;
+    let url = `/playlists/${playlistId}/items?limit=50&additional_types=track`;
     const tracks = [];
     while (url) {
       const page = await spotifyApi(current.session, url);
       if (!page.ok) {
-        return sendJson(res, page.status, {
-          error: page.data?.error?.message || "No se pudieron leer las canciones. Spotify solo permite leer items si eres propietario o colaborador de la playlist.",
-          endpoint: url,
-          owner: playlist.data?.owner || null,
-          currentUserId,
-          collaborative: Boolean(playlist.data?.collaborative),
-          public: playlist.data?.public,
-          spotify: page.data
-        });
+        const fallbackUrl = `/playlists/${playlistId}/tracks?limit=50`;
+        const fallback = await spotifyApi(current.session, fallbackUrl);
+        if (!fallback.ok) {
+          return sendJson(res, fallback.status, {
+            error: fallback.data?.error?.message || page.data?.error?.message || "No se pudieron leer las canciones.",
+            endpoint: `${url} | fallback ${fallbackUrl}`,
+            owner: playlist.data?.owner || null,
+            currentUserId,
+            collaborative: Boolean(playlist.data?.collaborative),
+            public: playlist.data?.public,
+            spotify: { primary: page.data, fallback: fallback.data }
+          });
+        }
+        page.data = fallback.data;
       }
       for (const item of page.data.items || []) {
         if (item.track?.type === "track" && item.track.uri) tracks.push(item.track);
