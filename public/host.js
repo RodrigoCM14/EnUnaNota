@@ -18,6 +18,7 @@ const elements = {
   resetGame: $("#resetGame"),
   copyJoinUrl: $("#copyJoinUrl"),
   spotifyStatus: $("#spotifyStatus"),
+  spotifyStatusText: $("#spotifyStatusText"),
   joinUrl: $("#joinUrl"),
   answerPanel: $("#answerPanel"),
   cover: $("#cover"),
@@ -79,6 +80,7 @@ function setStatus(text) {
   elements.spotifyStatus.setAttribute("aria-label", text);
   elements.spotifyStatus.classList.toggle("connected", connected);
   elements.spotifyStatus.classList.toggle("disconnected", !connected);
+  elements.spotifyStatusText.textContent = text;
 }
 
 function spotifyClientId() {
