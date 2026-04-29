@@ -32,6 +32,7 @@ let refreshToken = localStorage.getItem("spotify_refresh_token") || "";
 let tokenExpiresAt = Number(localStorage.getItem("spotify_expires_at") || 0);
 let spotifyPlayer = null;
 let spotifyDeviceId = "";
+let externalDeviceId = "";
 let playlistTracks = [];
 let answerVisible = false;
 let eventSource = null;
@@ -279,6 +280,20 @@ async function initPlayer() {
   await spotifyPlayer.connect();
 }
 
+async function findSpotifyDevice() {
+  if (spotifyDeviceId) return spotifyDeviceId;
+  const data = await spotify("/me/player/devices");
+  const devices = data?.devices || [];
+  const active = devices.find(device => device.is_active);
+  const usable = active || devices[0];
+  if (usable?.id) {
+    externalDeviceId = usable.id;
+    setStatus(`Spotify listo en ${usable.name}`);
+    return externalDeviceId;
+  }
+  return "";
+}
+
 function playlistIdFromUrl(value) {
   const trimmed = value.trim();
   if (/^[a-zA-Z0-9]{20,}$/.test(trimmed)) return trimmed;
@@ -310,9 +325,10 @@ async function loadPlaylist() {
 }
 
 async function playRound() {
-  await initPlayer();
-  if (!spotifyDeviceId) {
-    setStatus("Espera a que Spotify este listo");
+  await initPlayer().catch(error => setStatus(error.message));
+  const deviceId = spotifyDeviceId || await findSpotifyDevice();
+  if (!deviceId) {
+    setStatus("Abre Spotify en algun dispositivo y presiona reproducir otra vez.");
     return;
   }
   if (!playlistTracks.length) {
@@ -324,7 +340,7 @@ async function playRound() {
   const maxStart = Math.max(0, track.duration_ms - clipSeconds * 1000 - 5000);
   const positionMs = maxStart ? Math.floor(Math.random() * maxStart) : 0;
   answerVisible = false;
-  await spotify(`/me/player/play?device_id=${spotifyDeviceId}`, {
+  await spotify(`/me/player/play?device_id=${deviceId}`, {
     method: "PUT",
     body: JSON.stringify({ uris: [track.uri], position_ms: positionMs })
   });
@@ -349,19 +365,20 @@ async function playRound() {
 }
 
 async function replayRound() {
-  await initPlayer();
+  await initPlayer().catch(error => setStatus(error.message));
   const round = state?.round;
   if (!round?.track?.uri) {
     setStatus("No hay fragmento para repetir");
     return;
   }
-  if (!spotifyDeviceId) {
-    setStatus("Espera a que Spotify este listo");
+  const deviceId = spotifyDeviceId || await findSpotifyDevice();
+  if (!deviceId) {
+    setStatus("Abre Spotify en algun dispositivo y presiona reproducir otra vez.");
     return;
   }
   const clipSeconds = Number(elements.clipSeconds.value || state.clipSeconds || 5);
   answerVisible = false;
-  await spotify(`/me/player/play?device_id=${spotifyDeviceId}`, {
+  await spotify(`/me/player/play?device_id=${deviceId}`, {
     method: "PUT",
     body: JSON.stringify({ uris: [round.track.uri], position_ms: round.positionMs || 0 })
   });
