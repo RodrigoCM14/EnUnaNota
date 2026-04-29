@@ -20,7 +20,7 @@ Todos los telefonos deben estar en la misma red Wi-Fi que la computadora anfitri
 En la configuracion de Spotify agrega este redirect URI:
 
 ```text
-http://127.0.0.1:3000/
+http://127.0.0.1:3000/spotify/callback
 ```
 
 Spotify no acepta `localhost` como redirect URI. Usa `127.0.0.1`, que es la direccion local segura permitida para desarrollo.
@@ -37,10 +37,10 @@ La ruta recomendada es GitHub + Render Web Service.
 4. Render detectara `render.yaml`. Si lo configuras manualmente, usa:
    - Build command: `npm install`
    - Start command: `npm start`
-5. Cuando Render te de la URL publica, por ejemplo `https://en-una-nota.onrender.com`, agregala en Spotify como Redirect URI con slash final:
+5. Cuando Render te de la URL publica, por ejemplo `https://en-una-nota.onrender.com`, agregala en Spotify como Redirect URI:
 
 ```text
-https://TU-APP.onrender.com/
+https://TU-APP.onrender.com/spotify/callback
 ```
 
 6. Abre el juego desde esa URL publica y conecta Spotify.
@@ -51,7 +51,7 @@ Despues de autorizar Spotify una vez desde la misma URL, el juego guarda la sesi
 
 Revisa este checklist:
 
-- En Spotify Dashboard, la Redirect URI debe ser exactamente la URL publica con slash final, por ejemplo `https://en-una-nota.onrender.com/`.
+- En Spotify Dashboard, la Redirect URI debe terminar en `/spotify/callback`, por ejemplo `https://en-una-nota.onrender.com/spotify/callback`.
 - Guarda los cambios en Spotify despues de agregar la Redirect URI.
 - En Render, el servicio debe ser **Web Service**, no **Static Site**.
 - En Render, fuerza un redeploy despues de subir cambios a GitHub.
