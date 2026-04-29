@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Buzzer - En Una Nota</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body class="player">
+    <main class="phone">
+      <section id="joinScreen" class="join-screen">
+        <p class="eyebrow">En Una Nota</p>
+        <h1>Tu buzzer</h1>
+        <label>
+          Nombre
+          <input id="playerName" maxlength="24" autocomplete="name" placeholder="Tu nombre">
+        </label>
+        <label>
+          Sala
+          <input id="playerRoom" autocomplete="off" value="default">
+        </label>
+        <button id="joinGame" class="primary">Entrar</button>
+      </section>
+
+      <section id="buzzerScreen" class="buzzer-screen hidden">
+        <div class="player-head">
+          <div>
+            <p id="hello">Listo</p>
+            <h1 id="playerScore">0 pts</h1>
+          </div>
+          <span id="rank">-</span>
+        </div>
+        <button id="buzzButton" class="buzzer">BUZZ</button>
+        <p id="roundState" class="round-state">Sin ronda activa</p>
+        <p id="buzzState">Espera la cancion...</p>
+      </section>
+    </main>
+    <script src="./player.js" type="module"></script>
+  </body>
+</html>

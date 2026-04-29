@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>En Una Nota</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body class="host">
+    <main class="shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">Juego de fiesta con Spotify Premium</p>
+          <h1>En Una Nota</h1>
+        </div>
+        <div class="status" id="spotifyStatus">Spotify sin conectar</div>
+      </section>
+
+      <section class="workspace">
+        <aside class="panel setup-panel">
+          <h2>Configuracion</h2>
+          <label>
+            Client ID de Spotify
+            <input id="clientId" autocomplete="off" placeholder="Tu Spotify Client ID">
+          </label>
+          <label>
+            Playlist de Spotify
+            <input id="playlistUrl" autocomplete="off" placeholder="https://open.spotify.com/playlist/...">
+          </label>
+          <div class="grid-2">
+            <label>
+              Segundos
+              <input id="clipSeconds" type="number" min="1" max="20" value="5">
+            </label>
+            <label>
+              Sala
+              <input id="roomId" autocomplete="off" value="default">
+            </label>
+          </div>
+          <button id="connectSpotify" class="primary">Conectar Spotify</button>
+          <button id="loadPlaylist">Cargar playlist</button>
+          <div class="join-box">
+            <span>Jugadores</span>
+            <strong id="joinUrl">Abre /player</strong>
+            <button id="copyJoinUrl" type="button">Copiar enlace</button>
+          </div>
+        </aside>
+
+        <section class="stage">
+          <div class="now-playing">
+            <img id="cover" alt="" src="">
+            <div>
+              <p id="roundLabel">Ronda lista</p>
+              <h2 id="trackTitle">Carga una playlist y empieza</h2>
+              <p id="trackArtist">La cancion se ocultara durante el fragmento.</p>
+            </div>
+          </div>
+          <div class="round-meter">
+            <span id="roundTimer">--</span>
+            <div class="meter-track"><span id="roundProgress"></span></div>
+          </div>
+          <div class="controls">
+            <button id="playRound" class="huge">Reproducir cancion aleatoria</button>
+            <button id="replayRound">Repetir fragmento</button>
+            <button id="revealAnswer">Mostrar respuesta</button>
+            <button id="clearBuzzes">Limpiar buzzers</button>
+          </div>
+          <div class="buzz-board">
+            <h2>Buzzers</h2>
+            <ol id="buzzList"></ol>
+          </div>
+        </section>
+
+        <aside class="panel score-panel">
+          <h2>Puntajes</h2>
+          <div id="scoreboard" class="scoreboard"></div>
+          <button id="resetGame" class="danger">Reiniciar juego</button>
+        </aside>
+      </section>
+    </main>
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script src="./host.js" type="module"></script>
+  </body>
+</html>
