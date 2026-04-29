@@ -12,6 +12,7 @@ const elements = {
   disconnectSpotify: $("#disconnectSpotify"),
   loadPlaylist: $("#loadPlaylist"),
   playRound: $("#playRound"),
+  replayRound: $("#replayRound"),
   revealAnswer: $("#revealAnswer"),
   clearBuzzes: $("#clearBuzzes"),
   resetGame: $("#resetGame"),
