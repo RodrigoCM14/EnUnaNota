@@ -47,4 +47,14 @@ https://TU-APP.onrender.com/
 
 Despues de autorizar Spotify una vez desde la misma URL, el juego guarda la sesion en ese navegador y renueva la conexion automaticamente.
 
+## Si Spotify vuelve con `?error=server_error`
+
+Revisa este checklist:
+
+- En Spotify Dashboard, la Redirect URI debe ser exactamente la URL publica con slash final, por ejemplo `https://en-una-nota.onrender.com/`.
+- Guarda los cambios en Spotify despues de agregar la Redirect URI.
+- En Render, el servicio debe ser **Web Service**, no **Static Site**.
+- En Render, fuerza un redeploy despues de subir cambios a GitHub.
+- Abre el juego desde la misma URL que agregaste a Spotify. No mezcles `http`, `https`, rutas `/public/`, ni dominios distintos.
+
 La cuenta que conecta Spotify debe tener Premium. La app usa el Web Playback SDK para reproducir fragmentos aleatorios y la Web API para leer la playlist.
