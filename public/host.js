@@ -127,10 +127,11 @@ async function connectSpotify() {
     body: JSON.stringify({ client_id: clientId, redirect_uri: redirectUri })
   });
   const auth = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
-  if (!response.ok || !auth.authUrl || !auth.verifier) {
+  if (!response.ok || !auth.authUrl || !auth.verifier || !auth.state) {
     throw new Error(auth.error || "No se pudo preparar login de Spotify");
   }
   localStorage.setItem("spotify_code_verifier", auth.verifier);
+  localStorage.setItem("spotify_auth_state", auth.state);
   location.assign(auth.authUrl);
 }
 
@@ -164,10 +165,12 @@ async function finishAuth() {
   }
   const code = params.get("code");
   if (!code) return;
+  const stateParam = params.get("state") || "";
   const clientId = localStorage.getItem("spotify_client_id") || spotifyClientId();
-  const verifier = localStorage.getItem("spotify_code_verifier");
-  if (!verifier) {
-    setStatus("Sesion de Spotify incompleta. Conecta otra vez desde 127.0.0.1");
+  const storedState = localStorage.getItem("spotify_auth_state") || "";
+  const verifier = localStorage.getItem("spotify_code_verifier") || "";
+  if (storedState && stateParam && storedState !== stateParam) {
+    setStatus("Spotify devolvio una sesion distinta. Conecta otra vez.");
     history.replaceState({}, "", location.pathname);
     return;
   }
@@ -177,7 +180,8 @@ async function finishAuth() {
     code,
     redirect_uri: redirectUri,
     client_id: clientId,
-    code_verifier: verifier
+    code_verifier: verifier,
+    state: stateParam
   });
   history.replaceState({}, "", location.pathname);
   if (!response.ok || !token.access_token) {
@@ -187,6 +191,7 @@ async function finishAuth() {
   }
   saveToken(token);
   localStorage.removeItem("spotify_code_verifier");
+  localStorage.removeItem("spotify_auth_state");
   setStatus("Spotify conectado");
 }
 
@@ -241,6 +246,7 @@ function waitForSpotifySdk() {
 
 async function initPlayer() {
   if (spotifyPlayer || !validToken()) return;
+  setStatus("Spotify autorizado, iniciando reproductor...");
   await waitForSpotifySdk();
   spotifyPlayer = new Spotify.Player({
     name: "En Una Nota",
