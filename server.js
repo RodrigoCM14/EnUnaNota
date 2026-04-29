@@ -240,7 +240,7 @@ function saveSpotifyToken(session, token) {
 }
 
 function normalizeSpotifyTrack(item) {
-  const track = item?.track || item;
+  const track = item?.item || item?.track || item;
   if (!track || track.type !== "track" || !track.uri) return null;
   return {
     name: track.name || "Cancion sin titulo",
@@ -461,30 +461,18 @@ async function handleApi(req, res, pathname, searchParams) {
       });
     }
 
-    const primaryUrl = `/playlists/${playlistId}/items?limit=50&additional_types=track`;
-    let collected = await collectPlaylistTracks(current.session, primaryUrl);
-    if (!collected.ok || !collected.tracks.length) {
-      const fallbackUrl = `/playlists/${playlistId}/tracks?limit=50`;
-      const fallback = await collectPlaylistTracks(current.session, fallbackUrl);
-      if (!fallback.ok) {
-        return sendJson(res, fallback.status, {
-          error: fallback.data?.error?.message || collected.data?.error?.message || "No se pudieron leer las canciones.",
-          endpoint: `${collected.endpoint || primaryUrl} | fallback ${fallback.endpoint || fallbackUrl}`,
-          owner: playlist.data?.owner || null,
-          currentUserId,
-          collaborative: Boolean(playlist.data?.collaborative),
-          public: playlist.data?.public,
-          spotify: { primary: collected.data, fallback: fallback.data }
-        });
-      }
-      collected = {
-        ...fallback,
-        summary: {
-          ...fallback.summary,
-          primaryItems: collected.summary.items,
-          primaryTracks: collected.summary.playableTracks
-        }
-      };
+    const primaryUrl = `/playlists/${playlistId}/items?limit=50`;
+    const collected = await collectPlaylistTracks(current.session, primaryUrl);
+    if (!collected.ok) {
+      return sendJson(res, collected.status, {
+        error: collected.data?.error?.message || "No se pudieron leer las canciones. En Development Mode, Spotify solo permite este endpoint para playlists propias o colaborativas y para usuarios autorizados en la app.",
+        endpoint: collected.endpoint || primaryUrl,
+        owner: playlist.data?.owner || null,
+        currentUserId,
+        collaborative: Boolean(playlist.data?.collaborative),
+        public: playlist.data?.public,
+        spotify: collected.data
+      });
     }
 
     sendJson(res, 200, { name: playlist.data.name || "Playlist", tracks: collected.tracks, summary: collected.summary });
