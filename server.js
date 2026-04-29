@@ -112,24 +112,32 @@ function contentType(file) {
 }
 
 function serveStatic(req, res, pathname) {
-  const route = pathname === "/" ? "/index.html" : pathname === "/player" ? "/player.html" : pathname;
-  const filePath = path.normalize(path.join(PUBLIC_DIR, route));
-  if (!filePath.startsWith(PUBLIC_DIR)) {
+  let route = pathname === "/" ? "index.html" : pathname === "/player" ? "player.html" : pathname.replace(/^\/+/, "");
+  if (route === "public" || route === "public/") route = "index.html";
+  if (route.startsWith("public/")) route = route.slice("public/".length) || "index.html";
+
+  const filePath = path.resolve(PUBLIC_DIR, route);
+  const publicRoot = path.resolve(PUBLIC_DIR);
+  if (filePath !== publicRoot && !filePath.startsWith(publicRoot + path.sep)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
   }
-  fs.readFile(filePath, (error, data) => {
-    if (error) {
-      res.writeHead(404);
-      res.end("Not found");
-      return;
-    }
-    res.writeHead(200, {
-      "Content-Type": contentType(filePath),
-      "Cache-Control": "no-store"
+
+  fs.stat(filePath, (statError, stats) => {
+    const finalPath = !statError && stats.isDirectory() ? path.join(filePath, "index.html") : filePath;
+    fs.readFile(finalPath, (error, data) => {
+      if (error) {
+        res.writeHead(404);
+        res.end("Not found");
+        return;
+      }
+      res.writeHead(200, {
+        "Content-Type": contentType(finalPath),
+        "Cache-Control": "no-store"
+      });
+      res.end(data);
     });
-    res.end(data);
   });
 }
 
@@ -262,15 +270,16 @@ async function finishSpotifyLogin(req, res, searchParams) {
   const remembered = state ? spotifyAuthStates.get(state) : null;
   if (state) spotifyAuthStates.delete(state);
   const origin = remembered?.origin || originFromRequest(req);
+  const appHome = `${origin}/`;
 
   if (error) {
-    sendRedirect(res, `${origin}/?spotify=error&message=${encodeURIComponent(error)}`);
+    sendRedirect(res, `${appHome}?spotify=error&message=${encodeURIComponent(error)}`);
     return;
   }
 
   const code = searchParams.get("code") || "";
   if (!code || !remembered?.verifier) {
-    sendRedirect(res, `${origin}/?spotify=error&message=${encodeURIComponent("Sesion OAuth expirada")}`);
+    sendRedirect(res, `${appHome}?spotify=error&message=${encodeURIComponent("Sesion OAuth expirada")}`);
     return;
   }
 
@@ -284,7 +293,7 @@ async function finishSpotifyLogin(req, res, searchParams) {
   const result = await requestSpotifyToken(body);
   if (!result.ok || !result.token.access_token) {
     const detail = result.token.error_description || result.token.error || "No se pudo obtener token";
-    sendRedirect(res, `${origin}/?spotify=error&message=${encodeURIComponent(detail)}`);
+    sendRedirect(res, `${appHome}?spotify=error&message=${encodeURIComponent(detail)}`);
     return;
   }
 
@@ -292,7 +301,7 @@ async function finishSpotifyLogin(req, res, searchParams) {
   session.clientId = remembered.clientId;
   saveSpotifyToken(session, result.token);
   spotifySessions.set(remembered.sid, session);
-  sendRedirect(res, `${origin}/?spotify=connected`, {
+  sendRedirect(res, `${appHome}?spotify=connected`, {
     "Set-Cookie": spotifyCookie(remembered.sid, origin.startsWith("https://"))
   });
 }
