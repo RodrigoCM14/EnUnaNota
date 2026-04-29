@@ -145,6 +145,7 @@ async function connectSpotify() {
   const challenge = base64Url(await sha256(verifier));
   localStorage.setItem("spotify_code_verifier", verifier);
   const redirectUri = spotifyRedirectUri();
+  setStatus(`Conectando con Spotify via ${redirectUri}`);
   const auth = new URL("https://accounts.spotify.com/authorize");
   auth.searchParams.set("response_type", "code");
   auth.searchParams.set("client_id", clientId);
@@ -166,6 +167,13 @@ function saveToken(token) {
 
 async function finishAuth() {
   const params = new URLSearchParams(location.search);
+  const authError = params.get("error");
+  if (authError) {
+    const description = params.get("error_description");
+    setStatus(description || `Spotify devolvio error: ${authError}`);
+    history.replaceState({}, "", location.pathname);
+    return;
+  }
   const code = params.get("code");
   if (!code) return;
   const clientId = localStorage.getItem("spotify_client_id") || spotifyClientId();
