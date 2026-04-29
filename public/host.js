@@ -26,16 +26,6 @@ const elements = {
   scoreboard: $("#scoreboard")
 };
 
-const scopes = [
-  "streaming",
-  "user-read-email",
-  "user-read-private",
-  "user-read-playback-state",
-  "user-modify-playback-state",
-  "playlist-read-private",
-  "playlist-read-collaborative"
-];
-
 let accessToken = localStorage.getItem("spotify_access_token") || "";
 let refreshToken = localStorage.getItem("spotify_refresh_token") || "";
 let tokenExpiresAt = Number(localStorage.getItem("spotify_expires_at") || 0);
@@ -51,6 +41,7 @@ let timerId = null;
 function canonicalHostUrl() {
   const url = new URL(location.href);
   if (url.hostname === "localhost") url.hostname = "127.0.0.1";
+  if (url.hostname.endsWith(".onrender.com")) url.protocol = "https:";
   return url;
 }
 
@@ -110,25 +101,12 @@ async function loadServerInfo() {
   updateJoinUrl();
 }
 
-function randomString(length) {
-  const bytes = new Uint8Array(length);
-  crypto.getRandomValues(bytes);
-  return [...bytes].map(byte => byte.toString(16).padStart(2, "0")).join("").slice(0, length);
-}
-
-async function sha256(text) {
-  const data = new TextEncoder().encode(text);
-  return crypto.subtle.digest("SHA-256", data);
-}
-
-function base64Url(buffer) {
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "");
-}
-
 async function connectSpotify() {
+  if (location.hostname.endsWith(".onrender.com") && location.protocol !== "https:") {
+    const url = canonicalHostUrl();
+    location.replace(url.href);
+    return;
+  }
   if (location.hostname === "localhost") {
     const url = canonicalHostUrl();
     url.searchParams.set("connect", "spotify");
@@ -141,19 +119,19 @@ async function connectSpotify() {
     return;
   }
   localStorage.setItem("spotify_client_id", clientId);
-  const verifier = randomString(96);
-  const challenge = base64Url(await sha256(verifier));
-  localStorage.setItem("spotify_code_verifier", verifier);
   const redirectUri = spotifyRedirectUri();
   setStatus(`Conectando con Spotify via ${redirectUri}`);
-  const auth = new URL("https://accounts.spotify.com/authorize");
-  auth.searchParams.set("response_type", "code");
-  auth.searchParams.set("client_id", clientId);
-  auth.searchParams.set("scope", scopes.join(" "));
-  auth.searchParams.set("code_challenge_method", "S256");
-  auth.searchParams.set("code_challenge", challenge);
-  auth.searchParams.set("redirect_uri", redirectUri);
-  location.href = auth.href;
+  const response = await fetch("/api/spotify-auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ client_id: clientId, redirect_uri: redirectUri })
+  });
+  const auth = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
+  if (!response.ok || !auth.authUrl || !auth.verifier) {
+    throw new Error(auth.error || "No se pudo preparar login de Spotify");
+  }
+  localStorage.setItem("spotify_code_verifier", auth.verifier);
+  location.assign(auth.authUrl);
 }
 
 function saveToken(token) {
@@ -449,7 +427,7 @@ function connectEvents() {
   };
 }
 
-elements.connectSpotify.addEventListener("click", connectSpotify);
+elements.connectSpotify.addEventListener("click", () => connectSpotify().catch(error => setStatus(error.message || "No se pudo abrir Spotify")));
 elements.loadPlaylist.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
 elements.playRound.addEventListener("click", () => playRound().catch(error => setStatus(error.message)));
 elements.replayRound.addEventListener("click", () => replayRound().catch(error => setStatus(error.message)));
