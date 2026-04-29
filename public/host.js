@@ -165,6 +165,16 @@ function saveToken(token) {
   if (refreshToken) localStorage.setItem("spotify_refresh_token", refreshToken);
 }
 
+async function spotifyToken(body) {
+  const response = await fetch("/api/spotify-token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const token = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
+  return { response, token };
+}
+
 async function finishAuth() {
   const params = new URLSearchParams(location.search);
   const authError = params.get("error");
@@ -184,22 +194,17 @@ async function finishAuth() {
     return;
   }
   const redirectUri = spotifyRedirectUri();
-  const body = new URLSearchParams({
+  const { response, token } = await spotifyToken({
     grant_type: "authorization_code",
     code,
     redirect_uri: redirectUri,
     client_id: clientId,
     code_verifier: verifier
   });
-  const response = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  });
-  const token = await response.json();
   history.replaceState({}, "", location.pathname);
   if (!response.ok || !token.access_token) {
-    setStatus(token.error_description || token.error || "No se pudo conectar Spotify");
+    const detail = token.error_description || token.error || "No se pudo conectar Spotify";
+    setStatus(`Spotify token ${response.status}: ${detail}`);
     return;
   }
   saveToken(token);
@@ -209,17 +214,11 @@ async function finishAuth() {
 
 async function refreshSpotifyToken() {
   if (!refreshToken) return false;
-  const body = new URLSearchParams({
+  const { response, token } = await spotifyToken({
     grant_type: "refresh_token",
     refresh_token: refreshToken,
     client_id: spotifyClientId()
   });
-  const response = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  });
-  const token = await response.json().catch(() => ({}));
   if (!response.ok || !token.access_token) {
     localStorage.removeItem("spotify_access_token");
     localStorage.removeItem("spotify_refresh_token");
