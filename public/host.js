@@ -270,6 +270,19 @@ function wait(ms) {
   return new Promise(resolve => window.setTimeout(resolve, ms));
 }
 
+async function pausePlaybackForBuzz() {
+  if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
+  pausePlaybackTimeoutId = null;
+  await spotify("/me/player/pause", { method: "PUT" });
+  setStatus("Buzz recibido. Musica pausada");
+}
+
+function pauseOnNewBuzz(previousState, nextState) {
+  if (!previousState || !nextState?.round || nextState.round.revealed) return;
+  if ((nextState.buzzes?.length || 0) <= (previousState.buzzes?.length || 0)) return;
+  pausePlaybackForBuzz().catch(() => {});
+}
+
 async function spotify(path, options = {}) {
   if (!validToken()) await refreshSpotifyToken();
   if (!validToken()) throw new Error("Conecta Spotify otra vez");
@@ -522,15 +535,15 @@ function render() {
   updateRoundMeter();
 
   elements.buzzList.innerHTML = "";
-  for (const buzz of state.buzzes) {
+  state.buzzes.forEach((buzz, index) => {
     const li = document.createElement("li");
     li.className = "buzz-item";
-    li.innerHTML = `<strong>${buzz.name}</strong><button data-score="1" data-player="${buzz.playerId}">Correcto +1</button><button data-score="-1" data-player="${buzz.playerId}">Fallo -1</button>`;
+    li.innerHTML = `<strong><span>${index + 1}.</span> ${buzz.name}</strong><button data-score="1" data-player="${buzz.playerId}">Correcto +1</button><button data-score="-1" data-player="${buzz.playerId}">Fallo -1</button>`;
     elements.buzzList.append(li);
-  }
+  });
   if (!state.buzzes.length) {
     const li = document.createElement("li");
-    li.textContent = "Nadie ha presionado todavia.";
+    li.textContent = "Esperando buzzers.";
     elements.buzzList.append(li);
   }
 
@@ -550,7 +563,9 @@ function connectEvents() {
   eventSource?.close();
   eventSource = new EventSource(`/events?room=${encodeURIComponent(room())}`);
   eventSource.onmessage = event => {
-    state = JSON.parse(event.data);
+    const nextState = JSON.parse(event.data);
+    pauseOnNewBuzz(state, nextState);
+    state = nextState;
     render();
   };
 }
