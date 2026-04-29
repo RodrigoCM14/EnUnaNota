@@ -3,7 +3,6 @@ const $ = selector => document.querySelector(selector);
 const joinScreen = $("#joinScreen");
 const buzzerScreen = $("#buzzerScreen");
 const playerName = $("#playerName");
-const playerRoom = $("#playerRoom");
 const joinGame = $("#joinGame");
 const buzzButton = $("#buzzButton");
 const hello = $("#hello");
@@ -13,15 +12,15 @@ const roundState = $("#roundState");
 const buzzState = $("#buzzState");
 
 let playerId = localStorage.getItem("en_una_nota_player_id") || crypto.randomUUID();
+const roomId = new URLSearchParams(location.search).get("room") || localStorage.getItem("en_una_nota_room") || "default";
 let eventSource = null;
 let state = null;
 
 localStorage.setItem("en_una_nota_player_id", playerId);
-playerRoom.value = new URLSearchParams(location.search).get("room") || localStorage.getItem("en_una_nota_room") || "default";
 playerName.value = localStorage.getItem("en_una_nota_name") || "";
 
 function room() {
-  return playerRoom.value.trim() || "default";
+  return roomId;
 }
 
 function api(path, body) {
@@ -93,9 +92,6 @@ function render() {
 
 joinGame.addEventListener("click", join);
 playerName.addEventListener("keydown", event => {
-  if (event.key === "Enter") join();
-});
-playerRoom.addEventListener("keydown", event => {
   if (event.key === "Enter") join();
 });
 buzzButton.addEventListener("click", async () => {

@@ -387,6 +387,15 @@ h2 {
   font-weight: 900;
 }
 
+.score-row.winner {
+  border-color: rgba(38, 208, 124, 0.75);
+  background: rgba(38, 208, 124, 0.12);
+}
+
+.score-row.winner strong {
+  color: var(--accent-2);
+}
+
 .phone {
   width: min(100%, 520px);
   min-height: 100vh;
@@ -400,6 +409,10 @@ h2 {
 .buzzer-screen {
   display: grid;
   gap: 16px;
+}
+
+.buzzer-screen {
+  gap: 22px;
 }
 
 .hidden {
@@ -453,6 +466,7 @@ h2 {
 
 #buzzState {
   min-height: 48px;
+  margin-top: 4px;
   text-align: center;
   color: var(--muted);
   font-size: 1.2rem;
@@ -460,7 +474,7 @@ h2 {
 
 .round-state {
   min-height: 28px;
-  margin: 0;
+  margin: 6px 0 0;
   text-align: center;
   color: var(--accent);
   font-weight: 800;

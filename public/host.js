@@ -260,9 +260,10 @@ function validToken() {
 
 function schedulePlaybackPause(clipSeconds) {
   if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
-  pausePlaybackTimeoutId = window.setTimeout(() => {
+  pausePlaybackTimeoutId = window.setTimeout(async () => {
     pausePlaybackTimeoutId = null;
-    spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
+    await spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
+    await markRoundStopped().catch(() => {});
   }, clipSeconds * 1000);
 }
 
@@ -274,7 +275,17 @@ async function pausePlaybackForBuzz() {
   if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
   pausePlaybackTimeoutId = null;
   await spotify("/me/player/pause", { method: "PUT" });
+  await markRoundStopped();
   setStatus("Buzz recibido. Musica pausada");
+}
+
+async function markRoundStopped() {
+  if (!state?.round || state.round.revealed || state.round.stoppedAt) return;
+  await api("/api/round", {
+    round: { ...state.round, stoppedAt: Date.now() },
+    clipSeconds: Number(elements.clipSeconds.value || state.clipSeconds || 5),
+    clearBuzzes: false
+  });
 }
 
 function pauseOnNewBuzz(previousState, nextState) {
@@ -440,6 +451,7 @@ async function playRound() {
   await api("/api/round", {
     clipSeconds,
     playlistName: state?.playlistName || "",
+    incrementRound: true,
     round: {
       track: {
         name: track.name,
@@ -449,6 +461,7 @@ async function playRound() {
       },
       positionMs,
       startedAt,
+      stoppedAt: null,
       revealed: false
     }
   });
@@ -480,7 +493,7 @@ async function replayRound() {
     clipSeconds,
     playlistName: state?.playlistName || "",
     clearBuzzes: false,
-    round: { ...round, startedAt, revealed: false }
+    round: { ...round, startedAt, stoppedAt: null, revealed: false }
   });
   await wait(PLAYBACK_START_DELAY_MS);
   await spotify(`/me/player/play?device_id=${deviceId}`, {
@@ -514,8 +527,9 @@ function updateRoundMeter() {
     return;
   }
   const total = Number(state.clipSeconds || elements.clipSeconds.value || 5) * 1000;
-  const elapsed = Date.now() - round.startedAt;
-  const remaining = Math.max(0, total - elapsed);
+  const effectiveNow = round.stoppedAt || Date.now();
+  const elapsed = effectiveNow - round.startedAt;
+  const remaining = Math.min(total, Math.max(0, total - elapsed));
   const progress = Math.min(100, Math.max(0, (elapsed / total) * 100));
   elements.roundTimer.textContent = `${Math.ceil(remaining / 1000)}s`;
   elements.roundProgress.style.width = `${progress}%`;
@@ -526,10 +540,12 @@ function render() {
   const round = state.round;
   const showAnswer = answerVisible || round?.revealed;
   const hasCover = Boolean(showAnswer && round?.track?.image);
+  const roundNumber = state.roundNumber ? `Ronda ${state.roundNumber}` : "Ronda --";
+  const playlistName = showAnswer && round ? state.playlistName || "Playlist" : "Playlist";
   elements.answerPanel?.classList.toggle("answer-hidden", !showAnswer);
   elements.cover.classList.toggle("cover-placeholder", !hasCover);
   elements.cover.src = hasCover ? round.track.image : "";
-  elements.roundLabel.textContent = showAnswer && round ? state.playlistName || "Playlist" : "Playlist";
+  elements.roundLabel.textContent = `${roundNumber} · ${playlistName}`;
   elements.trackTitle.textContent = showAnswer && round ? round.track.name : "Cancion";
   elements.trackArtist.textContent = showAnswer && round ? round.track.artists : "Artista";
   updateRoundMeter();
@@ -550,8 +566,10 @@ function render() {
   elements.scoreboard.innerHTML = "";
   for (const player of state.players) {
     const row = document.createElement("div");
+    const isWinner = state.winner?.id === player.id;
     row.className = "score-row";
-    row.innerHTML = `<strong>${player.name}</strong><span class="score">${player.score}</span><span>pts</span>`;
+    row.classList.toggle("winner", isWinner);
+    row.innerHTML = `<strong>${player.name}${isWinner ? " · Ganador" : ""}</strong><span class="score">${player.score}</span><span>/${state.pointTarget || 10}</span>`;
     elements.scoreboard.append(row);
   }
   if (!state.players.length) {
