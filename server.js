@@ -160,6 +160,32 @@ async function handleApi(req, res, pathname, searchParams) {
 
   const body = await readBody(req);
 
+  if (pathname === "/api/spotify-token") {
+    const grantType = String(body.grant_type || "");
+    const tokenBody = new URLSearchParams({
+      grant_type: grantType,
+      client_id: String(body.client_id || "")
+    });
+    if (grantType === "authorization_code") {
+      tokenBody.set("code", String(body.code || ""));
+      tokenBody.set("redirect_uri", String(body.redirect_uri || ""));
+      tokenBody.set("code_verifier", String(body.code_verifier || ""));
+    } else if (grantType === "refresh_token") {
+      tokenBody.set("refresh_token", String(body.refresh_token || ""));
+    } else {
+      return sendJson(res, 400, { error: "Grant type invalido" });
+    }
+
+    const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: tokenBody
+    });
+    const token = await tokenResponse.json().catch(() => ({ error: "Respuesta invalida de Spotify" }));
+    sendJson(res, tokenResponse.status, token);
+    return;
+  }
+
   if (pathname === "/api/join") {
     const name = String(body.name || "").trim().slice(0, 24);
     if (!name) return sendJson(res, 400, { error: "Nombre requerido" });
