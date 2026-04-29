@@ -45,6 +45,7 @@ let eventSource = null;
 let state = null;
 let phoneBaseUrl = "";
 let timerId = null;
+let pausePlaybackTimeoutId = null;
 
 function canonicalHostUrl() {
   const url = new URL(location.href);
@@ -76,7 +77,7 @@ function api(path, body) {
 function setStatus(text) {
   const disconnected = /sin conectar|desconectado|error|no se pudo|conecta spotify|premium requerido|pendiente/i.test(text);
   const connected = !disconnected && /conectado|listo|activa|cargad|repetido|mostrada/i.test(text);
-  elements.spotifyStatus.textContent = connected ? "✓" : "×";
+  elements.spotifyStatus.textContent = connected ? "\u2713" : "\u2715";
   elements.spotifyStatus.title = text;
   elements.spotifyStatus.setAttribute("aria-label", text);
   elements.spotifyStatus.classList.toggle("connected", connected);
@@ -159,6 +160,8 @@ async function disconnectSpotify() {
   tokenExpiresAt = 0;
   spotifyDeviceId = "";
   activePlaybackDeviceId = "";
+  if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
+  pausePlaybackTimeoutId = null;
   spotifyPlayer?.disconnect?.();
   spotifyPlayer = null;
   setStatus("Spotify desconectado");
@@ -252,6 +255,14 @@ async function refreshSpotifyToken() {
 
 function validToken() {
   return accessToken && Date.now() < tokenExpiresAt - 30_000;
+}
+
+function schedulePlaybackPause(clipSeconds) {
+  if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
+  pausePlaybackTimeoutId = window.setTimeout(() => {
+    pausePlaybackTimeoutId = null;
+    spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
+  }, clipSeconds * 1000);
 }
 
 async function spotify(path, options = {}) {
@@ -427,9 +438,7 @@ async function playRound() {
     method: "PUT",
     body: JSON.stringify({ uris: [track.uri], position_ms: positionMs })
   });
-  window.setTimeout(() => {
-    spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
-  }, clipSeconds * 1000);
+  schedulePlaybackPause(clipSeconds);
 }
 
 async function replayRound() {
@@ -450,9 +459,7 @@ async function replayRound() {
     method: "PUT",
     body: JSON.stringify({ uris: [round.track.uri], position_ms: round.positionMs || 0 })
   });
-  window.setTimeout(() => {
-    spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
-  }, clipSeconds * 1000);
+  schedulePlaybackPause(clipSeconds);
   await api("/api/round", {
     clipSeconds,
     playlistName: state?.playlistName || "",
@@ -496,11 +503,13 @@ function render() {
   if (!state) return;
   const round = state.round;
   const showAnswer = answerVisible || round?.revealed;
-  elements.answerPanel?.classList.toggle("hidden", !showAnswer || !round);
-  elements.cover.src = showAnswer && round?.track?.image ? round.track.image : "";
-  elements.roundLabel.textContent = state.playlistName || "Ronda lista";
-  elements.trackTitle.textContent = showAnswer && round ? round.track.name : round ? "Adivina la cancion" : "Carga una playlist y empieza";
-  elements.trackArtist.textContent = showAnswer && round ? round.track.artists : "La respuesta se mantiene oculta hasta que la muestres.";
+  const hasCover = Boolean(showAnswer && round?.track?.image);
+  elements.answerPanel?.classList.toggle("answer-hidden", !showAnswer);
+  elements.cover.classList.toggle("cover-placeholder", !hasCover);
+  elements.cover.src = hasCover ? round.track.image : "";
+  elements.roundLabel.textContent = showAnswer && round ? state.playlistName || "Playlist" : "Playlist";
+  elements.trackTitle.textContent = showAnswer && round ? round.track.name : "Cancion";
+  elements.trackArtist.textContent = showAnswer && round ? round.track.artists : "Artista";
   updateRoundMeter();
 
   elements.buzzList.innerHTML = "";
