@@ -8,6 +8,7 @@ const elements = {
   clipSeconds: $("#clipSeconds"),
   roomId: $("#roomId"),
   connectSpotify: $("#connectSpotify"),
+  activateScreenPlayer: $("#activateScreenPlayer"),
   disconnectSpotify: $("#disconnectSpotify"),
   loadPlaylist: $("#loadPlaylist"),
   playRound: $("#playRound"),
@@ -258,7 +259,23 @@ function waitForSpotifySdk() {
   });
 }
 
-async function initPlayer() {
+function waitForScreenDevice(timeoutMs = 8000) {
+  if (spotifyDeviceId) return Promise.resolve(spotifyDeviceId);
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const intervalId = window.setInterval(() => {
+      if (spotifyDeviceId) {
+        window.clearInterval(intervalId);
+        resolve(spotifyDeviceId);
+      } else if (Date.now() - startedAt > timeoutMs) {
+        window.clearInterval(intervalId);
+        reject(new Error("Spotify no registro esta pantalla como dispositivo"));
+      }
+    }, 150);
+  });
+}
+
+async function initPlayer(activate = false) {
   if (spotifyPlayer || !validToken()) return;
   setStatus("Spotify autorizado, iniciando reproductor...");
   await Promise.race([
@@ -277,7 +294,30 @@ async function initPlayer() {
   spotifyPlayer.addListener("not_ready", () => setStatus("Spotify desconectado"));
   spotifyPlayer.addListener("account_error", () => setStatus("Spotify Premium requerido"));
   spotifyPlayer.addListener("playback_error", error => setStatus(error.message || "Error de reproduccion"));
-  await spotifyPlayer.connect();
+  if (activate) spotifyPlayer.activateElement?.();
+  const connected = await spotifyPlayer.connect();
+  if (!connected) throw new Error("Spotify no pudo conectar el reproductor web");
+  await waitForScreenDevice();
+}
+
+async function activateScreenPlayer() {
+  if (!validToken()) await refreshSpotifyToken();
+  if (!validToken()) {
+    setStatus("Conecta Spotify primero");
+    return;
+  }
+  await initPlayer(true);
+  if (!spotifyPlayer || !spotifyDeviceId) {
+    setStatus("El reproductor de esta pantalla aun no esta listo");
+    return;
+  }
+  spotifyPlayer.activateElement?.();
+  await spotify("/me/player", {
+    method: "PUT",
+    body: JSON.stringify({ device_ids: [spotifyDeviceId], play: false })
+  });
+  externalDeviceId = "";
+  setStatus("Esta pantalla quedo activa para reproducir");
 }
 
 async function findSpotifyDevice() {
@@ -337,8 +377,7 @@ async function playRound() {
   }
   const track = playlistTracks[Math.floor(Math.random() * playlistTracks.length)];
   const clipSeconds = Number(elements.clipSeconds.value || 5);
-  const maxStart = Math.max(0, track.duration_ms - clipSeconds * 1000 - 5000);
-  const positionMs = maxStart ? Math.floor(Math.random() * maxStart) : 0;
+  const positionMs = 0;
   answerVisible = false;
   await spotify(`/me/player/play?device_id=${deviceId}`, {
     method: "PUT",
@@ -465,6 +504,7 @@ function connectEvents() {
 }
 
 elements.connectSpotify.addEventListener("click", () => connectSpotify().catch(error => setStatus(error.message || "No se pudo abrir Spotify")));
+elements.activateScreenPlayer.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || "No se pudo activar esta pantalla")));
 elements.disconnectSpotify.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || "No se pudo desconectar Spotify")));
 elements.loadPlaylist.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
 elements.playRound.addEventListener("click", () => playRound().catch(error => setStatus(error.message)));
