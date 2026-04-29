@@ -211,8 +211,7 @@ function spotifyCookie(sid, secure) {
     `spotify_sid=${encodeURIComponent(sid)}`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
-    "Max-Age=2592000"
+    "SameSite=Lax"
   ];
   if (secure) parts.push("Secure");
   return parts.join("; ");
