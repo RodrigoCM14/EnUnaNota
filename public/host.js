@@ -46,6 +46,7 @@ let state = null;
 let phoneBaseUrl = "";
 let timerId = null;
 let pausePlaybackTimeoutId = null;
+const PLAYBACK_START_DELAY_MS = 1000;
 
 function canonicalHostUrl() {
   const url = new URL(location.href);
@@ -265,6 +266,10 @@ function schedulePlaybackPause(clipSeconds) {
   }, clipSeconds * 1000);
 }
 
+function wait(ms) {
+  return new Promise(resolve => window.setTimeout(resolve, ms));
+}
+
 async function spotify(path, options = {}) {
   if (!validToken()) await refreshSpotifyToken();
   if (!validToken()) throw new Error("Conecta Spotify otra vez");
@@ -418,6 +423,7 @@ async function playRound() {
   const clipSeconds = Number(elements.clipSeconds.value || 5);
   const positionMs = 0;
   answerVisible = false;
+  const startedAt = Date.now() + PLAYBACK_START_DELAY_MS;
   await api("/api/round", {
     clipSeconds,
     playlistName: state?.playlistName || "",
@@ -429,11 +435,12 @@ async function playRound() {
         uri: track.uri
       },
       positionMs,
-      startedAt: Date.now(),
+      startedAt,
       revealed: false
     }
   });
   activePlaybackDeviceId = deviceId;
+  await wait(PLAYBACK_START_DELAY_MS);
   await spotify(`/me/player/play?device_id=${deviceId}`, {
     method: "PUT",
     body: JSON.stringify({ uris: [track.uri], position_ms: positionMs })
@@ -455,17 +462,19 @@ async function replayRound() {
   const clipSeconds = Number(elements.clipSeconds.value || state.clipSeconds || 5);
   answerVisible = false;
   activePlaybackDeviceId = deviceId;
+  const startedAt = Date.now() + PLAYBACK_START_DELAY_MS;
+  await api("/api/round", {
+    clipSeconds,
+    playlistName: state?.playlistName || "",
+    clearBuzzes: false,
+    round: { ...round, startedAt, revealed: false }
+  });
+  await wait(PLAYBACK_START_DELAY_MS);
   await spotify(`/me/player/play?device_id=${deviceId}`, {
     method: "PUT",
     body: JSON.stringify({ uris: [round.track.uri], position_ms: round.positionMs || 0 })
   });
   schedulePlaybackPause(clipSeconds);
-  await api("/api/round", {
-    clipSeconds,
-    playlistName: state?.playlistName || "",
-    clearBuzzes: false,
-    round: { ...round, startedAt: Date.now(), revealed: false }
-  });
   setStatus("Fragmento repetido");
 }
 

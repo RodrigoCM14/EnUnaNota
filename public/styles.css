@@ -24,7 +24,7 @@ body {
     linear-gradient(rgba(248, 241, 231, 0.026) 1px, transparent 1px),
     linear-gradient(90deg, rgba(248, 241, 231, 0.022) 1px, transparent 1px),
     var(--bg);
-  background-size: 42px 42px;
+  background-size: 28px 28px;
   color: var(--text);
 }
 
