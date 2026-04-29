@@ -239,6 +239,47 @@ function saveSpotifyToken(session, token) {
   session.scope = token.scope || session.scope || "";
 }
 
+function normalizeSpotifyTrack(item) {
+  const track = item?.track || item;
+  if (!track || track.type !== "track" || !track.uri) return null;
+  return {
+    name: track.name || "Cancion sin titulo",
+    uri: track.uri,
+    type: track.type,
+    duration_ms: Number(track.duration_ms || 0),
+    artists: Array.isArray(track.artists) ? track.artists.map(artist => ({ name: artist.name || "" })) : [],
+    album: {
+      images: Array.isArray(track.album?.images)
+        ? track.album.images.map(image => ({ url: image.url || "" })).filter(image => image.url)
+        : []
+    }
+  };
+}
+
+async function collectPlaylistTracks(session, firstUrl) {
+  let url = firstUrl;
+  const tracks = [];
+  const summary = { pages: 0, items: 0, nullTracks: 0, nonTracks: 0, playableTracks: 0 };
+  while (url) {
+    summary.pages += 1;
+    const page = await spotifyApi(session, url);
+    if (!page.ok) return { ok: false, status: page.status, data: page.data, endpoint: url, tracks, summary };
+    for (const item of page.data.items || []) {
+      summary.items += 1;
+      if (!item?.track && !item?.uri) summary.nullTracks += 1;
+      const track = normalizeSpotifyTrack(item);
+      if (track) {
+        summary.playableTracks += 1;
+        tracks.push(track);
+      } else {
+        summary.nonTracks += 1;
+      }
+    }
+    url = page.data.next ? page.data.next.replace("https://api.spotify.com/v1", "") : "";
+  }
+  return { ok: true, tracks, summary };
+}
+
 async function refreshSpotifySession(session) {
   if (!session?.refreshToken || Date.now() < session.expiresAt - 30_000) return Boolean(session?.accessToken);
   const body = new URLSearchParams({
@@ -420,33 +461,33 @@ async function handleApi(req, res, pathname, searchParams) {
       });
     }
 
-    let url = `/playlists/${playlistId}/items?limit=50&additional_types=track`;
-    const tracks = [];
-    while (url) {
-      const page = await spotifyApi(current.session, url);
-      if (!page.ok) {
-        const fallbackUrl = `/playlists/${playlistId}/tracks?limit=50`;
-        const fallback = await spotifyApi(current.session, fallbackUrl);
-        if (!fallback.ok) {
-          return sendJson(res, fallback.status, {
-            error: fallback.data?.error?.message || page.data?.error?.message || "No se pudieron leer las canciones.",
-            endpoint: `${url} | fallback ${fallbackUrl}`,
-            owner: playlist.data?.owner || null,
-            currentUserId,
-            collaborative: Boolean(playlist.data?.collaborative),
-            public: playlist.data?.public,
-            spotify: { primary: page.data, fallback: fallback.data }
-          });
+    const primaryUrl = `/playlists/${playlistId}/items?limit=50&additional_types=track`;
+    let collected = await collectPlaylistTracks(current.session, primaryUrl);
+    if (!collected.ok || !collected.tracks.length) {
+      const fallbackUrl = `/playlists/${playlistId}/tracks?limit=50`;
+      const fallback = await collectPlaylistTracks(current.session, fallbackUrl);
+      if (!fallback.ok) {
+        return sendJson(res, fallback.status, {
+          error: fallback.data?.error?.message || collected.data?.error?.message || "No se pudieron leer las canciones.",
+          endpoint: `${collected.endpoint || primaryUrl} | fallback ${fallback.endpoint || fallbackUrl}`,
+          owner: playlist.data?.owner || null,
+          currentUserId,
+          collaborative: Boolean(playlist.data?.collaborative),
+          public: playlist.data?.public,
+          spotify: { primary: collected.data, fallback: fallback.data }
+        });
+      }
+      collected = {
+        ...fallback,
+        summary: {
+          ...fallback.summary,
+          primaryItems: collected.summary.items,
+          primaryTracks: collected.summary.playableTracks
         }
-        page.data = fallback.data;
-      }
-      for (const item of page.data.items || []) {
-        if (item.track?.type === "track" && item.track.uri) tracks.push(item.track);
-      }
-      url = page.data.next ? page.data.next.replace("https://api.spotify.com/v1", "") : "";
+      };
     }
 
-    sendJson(res, 200, { name: playlist.data.name || "Playlist", tracks });
+    sendJson(res, 200, { name: playlist.data.name || "Playlist", tracks: collected.tracks, summary: collected.summary });
     return;
   }
 
