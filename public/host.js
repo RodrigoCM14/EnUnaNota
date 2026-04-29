@@ -20,6 +20,7 @@ const elements = {
   spotifyStatus: $("#spotifyStatus"),
   spotifyStatusText: $("#spotifyStatusText"),
   joinUrl: $("#joinUrl"),
+  joinQr: $("#joinQr"),
   answerPanel: $("#answerPanel"),
   cover: $("#cover"),
   roundLabel: $("#roundLabel"),
@@ -99,6 +100,7 @@ function updateJoinUrl() {
   const url = new URL("/player", base);
   url.searchParams.set("room", room());
   elements.joinUrl.textContent = url.href;
+  elements.joinQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&data=${encodeURIComponent(url.href)}`;
 }
 
 async function copyJoinUrl() {

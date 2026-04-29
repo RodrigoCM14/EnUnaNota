@@ -207,7 +207,7 @@ h2 {
 
 .join-box {
   display: grid;
-  gap: 6px;
+  gap: 10px;
   overflow-wrap: anywhere;
 }
 
@@ -218,6 +218,15 @@ h2 {
 .join-box strong {
   color: var(--text);
   font-size: 0.95rem;
+}
+
+.join-box img {
+  width: min(180px, 100%);
+  aspect-ratio: 1;
+  justify-self: center;
+  padding: 8px;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
 .stage {
@@ -281,16 +290,22 @@ h2 {
 
 .controls {
   display: grid;
-  grid-template-columns: 1fr 150px 150px 150px;
-  gap: 10px;
+  grid-template-columns: 1.4fr repeat(3, minmax(120px, 0.7fr));
+  gap: 8px;
 }
 
 .huge {
-  min-height: 64px;
+  min-height: 50px;
   background: var(--accent-2);
   color: var(--ink);
   border-color: var(--accent-2);
   font-weight: 900;
+}
+
+.controls button {
+  min-height: 48px;
+  padding: 0 12px;
+  font-size: 0.95rem;
 }
 
 .buzz-board {
