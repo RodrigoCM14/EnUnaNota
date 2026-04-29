@@ -59,7 +59,15 @@ function api(path, body) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body || {})
-  }).then(response => response.json());
+  }).then(async response => {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) throw new Error(data.error || `Error ${response.status}`);
+    if (data.room) {
+      state = data.room;
+      render();
+    }
+    return data;
+  });
 }
 
 function setStatus(text) {
@@ -388,14 +396,6 @@ async function playRound() {
   const clipSeconds = Number(elements.clipSeconds.value || 5);
   const positionMs = 0;
   answerVisible = false;
-  activePlaybackDeviceId = deviceId;
-  await spotify(`/me/player/play?device_id=${deviceId}`, {
-    method: "PUT",
-    body: JSON.stringify({ uris: [track.uri], position_ms: positionMs })
-  });
-  window.setTimeout(() => {
-    spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
-  }, clipSeconds * 1000);
   await api("/api/round", {
     clipSeconds,
     playlistName: state?.playlistName || "",
@@ -411,6 +411,14 @@ async function playRound() {
       revealed: false
     }
   });
+  activePlaybackDeviceId = deviceId;
+  await spotify(`/me/player/play?device_id=${deviceId}`, {
+    method: "PUT",
+    body: JSON.stringify({ uris: [track.uri], position_ms: positionMs })
+  });
+  window.setTimeout(() => {
+    spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
+  }, clipSeconds * 1000);
 }
 
 async function replayRound() {
@@ -440,6 +448,7 @@ async function replayRound() {
     clearBuzzes: false,
     round: { ...round, startedAt: Date.now(), revealed: false }
   });
+  setStatus("Fragmento repetido");
 }
 
 async function revealAnswer() {
@@ -451,6 +460,9 @@ async function revealAnswer() {
       clipSeconds: Number(elements.clipSeconds.value),
       clearBuzzes: false
     });
+    setStatus("Respuesta mostrada");
+  } else {
+    setStatus("No hay respuesta para mostrar");
   }
 }
 
@@ -473,7 +485,7 @@ function render() {
   if (!state) return;
   const round = state.round;
   const showAnswer = answerVisible || round?.revealed;
-  elements.answerPanel.classList.toggle("hidden", !showAnswer || !round);
+  elements.answerPanel?.classList.toggle("hidden", !showAnswer || !round);
   elements.cover.src = showAnswer && round?.track?.image ? round.track.image : "";
   elements.roundLabel.textContent = state.playlistName || "Ronda lista";
   elements.trackTitle.textContent = showAnswer && round ? round.track.name : round ? "Adivina la cancion" : "Carga una playlist y empieza";
