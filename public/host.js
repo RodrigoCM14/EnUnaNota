@@ -8,6 +8,7 @@ const elements = {
   clipSeconds: $("#clipSeconds"),
   roomId: $("#roomId"),
   connectSpotify: $("#connectSpotify"),
+  disconnectSpotify: $("#disconnectSpotify"),
   loadPlaylist: $("#loadPlaylist"),
   playRound: $("#playRound"),
   revealAnswer: $("#revealAnswer"),
@@ -125,6 +126,20 @@ async function connectSpotify() {
   location.assign(url.href);
 }
 
+async function disconnectSpotify() {
+  await fetch("/api/spotify-logout", { method: "POST" });
+  localStorage.removeItem("spotify_access_token");
+  localStorage.removeItem("spotify_refresh_token");
+  localStorage.removeItem("spotify_expires_at");
+  accessToken = "";
+  refreshToken = "";
+  tokenExpiresAt = 0;
+  spotifyDeviceId = "";
+  spotifyPlayer?.disconnect?.();
+  spotifyPlayer = null;
+  setStatus("Spotify desconectado");
+}
+
 function saveToken(token) {
   accessToken = token.access_token || accessToken;
   refreshToken = token.refresh_token || refreshToken;
@@ -149,7 +164,7 @@ async function finishAuth() {
   const spotifyResult = params.get("spotify");
   if (spotifyResult === "connected") {
     history.replaceState({}, "", location.pathname);
-    setStatus("Spotify autorizado, iniciando reproductor...");
+    setStatus("Spotify conectado. Carga una playlist para iniciar el reproductor.");
     return;
   }
   if (spotifyResult === "error") {
@@ -242,7 +257,10 @@ function waitForSpotifySdk() {
 async function initPlayer() {
   if (spotifyPlayer || !validToken()) return;
   setStatus("Spotify autorizado, iniciando reproductor...");
-  await waitForSpotifySdk();
+  await Promise.race([
+    waitForSpotifySdk(),
+    new Promise((_, reject) => window.setTimeout(() => reject(new Error("No se pudo cargar Spotify Web Playback SDK")), 8000))
+  ]);
   spotifyPlayer = new Spotify.Player({
     name: "En Una Nota",
     getOAuthToken: cb => cb(accessToken),
@@ -429,6 +447,7 @@ function connectEvents() {
 }
 
 elements.connectSpotify.addEventListener("click", () => connectSpotify().catch(error => setStatus(error.message || "No se pudo abrir Spotify")));
+elements.disconnectSpotify.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || "No se pudo desconectar Spotify")));
 elements.loadPlaylist.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
 elements.playRound.addEventListener("click", () => playRound().catch(error => setStatus(error.message)));
 elements.replayRound.addEventListener("click", () => replayRound().catch(error => setStatus(error.message)));
@@ -455,7 +474,6 @@ elements.roomId.value = localStorage.getItem("room_id") || new URLSearchParams(l
 finishAuth()
   .then(async () => {
     if (!validToken()) await refreshSpotifyToken();
-    await initPlayer();
     const params = new URLSearchParams(location.search);
     if (validToken()) {
       sessionStorage.removeItem("spotify_auto_connect_attempted");
