@@ -527,7 +527,7 @@ async function revealAnswer() {
     await api("/api/round", {
       round: { ...state.round, revealed: true },
       clipSeconds: Number(state.clipSeconds || DEFAULT_CLIP_SECONDS),
-      clearBuzzes: false
+      clearBuzzes: true
     });
     setStatus("Respuesta mostrada");
   } else {
