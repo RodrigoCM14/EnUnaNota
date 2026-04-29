@@ -309,11 +309,18 @@ h2 {
 
 .round-meter {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-columns: 104px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   color: var(--accent);
   font-weight: 900;
+}
+
+#roundTimer {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .meter-track {
