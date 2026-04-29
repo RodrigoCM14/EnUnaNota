@@ -409,7 +409,9 @@ async function handleApi(req, res, pathname, searchParams) {
     const playlistId = String(searchParams.get("id") || "").trim();
     if (!/^[a-zA-Z0-9]{20,}$/.test(playlistId)) return sendJson(res, 400, { error: "Playlist ID invalido" });
 
-    const playlist = await spotifyApi(current.session, `/playlists/${playlistId}?fields=name`);
+    const profile = await spotifyApi(current.session, "/me");
+    const currentUserId = profile.ok ? profile.data?.id || "" : "";
+    const playlist = await spotifyApi(current.session, `/playlists/${playlistId}?fields=name,owner(id,display_name),collaborative,public`);
     if (!playlist.ok) {
       return sendJson(res, playlist.status, {
         error: playlist.data?.error?.message || "No se pudo leer la playlist",
@@ -418,14 +420,18 @@ async function handleApi(req, res, pathname, searchParams) {
       });
     }
 
-    let url = `/playlists/${playlistId}/tracks?limit=100&fields=items(track(name,uri,type,duration_ms,artists(name),album(images(url)))),next`;
+    let url = `/playlists/${playlistId}/items?limit=50&additional_types=track&fields=items(track(name,uri,type,duration_ms,artists(name),album(images(url)))),next`;
     const tracks = [];
     while (url) {
       const page = await spotifyApi(current.session, url);
       if (!page.ok) {
         return sendJson(res, page.status, {
-          error: page.data?.error?.message || "No se pudieron leer las canciones",
+          error: page.data?.error?.message || "No se pudieron leer las canciones. Spotify solo permite leer items si eres propietario o colaborador de la playlist.",
           endpoint: url,
+          owner: playlist.data?.owner || null,
+          currentUserId,
+          collaborative: Boolean(playlist.data?.collaborative),
+          public: playlist.data?.public,
           spotify: page.data
         });
       }
