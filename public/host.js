@@ -52,7 +52,7 @@ function canonicalHostUrl() {
 }
 
 function room() {
-  return elements.roomId.value.trim() || "default";
+  return elements.roomId?.value?.trim() || "default";
 }
 
 function api(path, body) {
@@ -72,11 +72,17 @@ function api(path, body) {
 }
 
 function setStatus(text) {
-  elements.spotifyStatus.textContent = text;
+  const disconnected = /sin conectar|desconectado|error|no se pudo|conecta spotify|premium requerido|pendiente/i.test(text);
+  const connected = !disconnected && /conectado|listo|activa|cargad|repetido|mostrada/i.test(text);
+  elements.spotifyStatus.textContent = connected ? "✓" : "×";
+  elements.spotifyStatus.title = text;
+  elements.spotifyStatus.setAttribute("aria-label", text);
+  elements.spotifyStatus.classList.toggle("connected", connected);
+  elements.spotifyStatus.classList.toggle("disconnected", !connected);
 }
 
 function spotifyClientId() {
-  return elements.clientId.value.trim() || DEFAULT_SPOTIFY_CLIENT_ID;
+  return elements.clientId?.value?.trim() || DEFAULT_SPOTIFY_CLIENT_ID;
 }
 
 function spotifyRedirectUri() {
@@ -537,7 +543,7 @@ elements.revealAnswer.addEventListener("click", () => revealAnswer().catch(error
 elements.clearBuzzes.addEventListener("click", () => api("/api/clear-buzzes"));
 elements.resetGame.addEventListener("click", () => confirm("Reiniciar jugadores y puntajes?") && api("/api/reset"));
 elements.copyJoinUrl.addEventListener("click", () => copyJoinUrl().catch(() => setStatus("No se pudo copiar el enlace")));
-elements.roomId.addEventListener("change", () => {
+elements.roomId?.addEventListener("change", () => {
   localStorage.setItem("room_id", room());
   updateJoinUrl();
   connectEvents();
@@ -548,11 +554,14 @@ elements.buzzList.addEventListener("click", event => {
   api("/api/score", { playerId: button.dataset.player, delta: Number(button.dataset.score) });
 });
 
-elements.clientId.value = localStorage.getItem("spotify_client_id") || "";
-if (!elements.clientId.value) elements.clientId.value = DEFAULT_SPOTIFY_CLIENT_ID;
-localStorage.setItem("spotify_client_id", elements.clientId.value);
+if (elements.clientId) {
+  elements.clientId.value = localStorage.getItem("spotify_client_id") || DEFAULT_SPOTIFY_CLIENT_ID;
+  localStorage.setItem("spotify_client_id", elements.clientId.value);
+}
 elements.playlistUrl.value = localStorage.getItem("spotify_playlist_url") || "";
-elements.roomId.value = localStorage.getItem("room_id") || new URLSearchParams(location.search).get("room") || "default";
+if (elements.roomId) {
+  elements.roomId.value = localStorage.getItem("room_id") || new URLSearchParams(location.search).get("room") || "default";
+}
 finishAuth()
   .then(async () => {
     const serverSession = await refreshSpotifyToken();
@@ -560,6 +569,7 @@ finishAuth()
     const params = new URLSearchParams(location.search);
     if (validToken()) {
       sessionStorage.removeItem("spotify_auto_connect_attempted");
+      activateScreenPlayer().catch(() => setStatus("Spotify conectado. Reactiva el reproductor si no suena en pantalla"));
     } else if (params.get("connect") === "spotify" && !params.has("code") && !params.has("error") && !sessionStorage.getItem("spotify_auto_connect_attempted")) {
       sessionStorage.setItem("spotify_auto_connect_attempted", "1");
       history.replaceState({}, "", location.pathname);
