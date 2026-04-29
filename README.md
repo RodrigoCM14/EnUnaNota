@@ -27,11 +27,13 @@ Spotify no acepta `localhost` como redirect URI. Usa `127.0.0.1`, que es la dire
 
 ## Subir a GitHub y desplegar
 
-Este juego necesita un servidor para las salas y buzzers en tiempo real, asi que GitHub Pages no alcanza por si solo. La ruta recomendada es GitHub + Render.
+Este juego necesita un servidor para las salas y buzzers en tiempo real, asi que GitHub Pages no alcanza por si solo. El repositorio incluye un `index.html` en la raiz para evitar pantallas `Not Found` en hostings estaticos, pero la version jugable debe correr como servicio Node.
+
+La ruta recomendada es GitHub + Render Web Service.
 
 1. Crea un repositorio en GitHub.
 2. Sube estos archivos al repositorio.
-3. Entra a Render y crea un servicio nuevo desde ese repositorio.
+3. Entra a Render y crea un **Web Service** nuevo desde ese repositorio. No uses **Static Site**.
 4. Render detectara `render.yaml`. Si lo configuras manualmente, usa:
    - Build command: `npm install`
    - Start command: `npm start`
