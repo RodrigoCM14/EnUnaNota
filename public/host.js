@@ -302,6 +302,10 @@ async function loadPlaylist() {
   }
   playlistTracks = playlist.tracks || [];
   await api("/api/round", { round: null, playlistName: playlist.name || "Playlist", clipSeconds: Number(elements.clipSeconds.value) });
+  if (!playlistTracks.length && playlist.summary) {
+    setStatus(`0 canciones. Items: ${playlist.summary.items}, tracks: ${playlist.summary.playableTracks}, no tracks: ${playlist.summary.nonTracks}`);
+    return;
+  }
   setStatus(`${playlistTracks.length} canciones cargadas. Reproduce una ronda para iniciar Spotify.`);
 }
 
