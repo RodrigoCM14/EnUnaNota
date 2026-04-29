@@ -420,8 +420,9 @@ async function loadPlaylist() {
   const playlist = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
   if (!response.ok) {
     const endpoint = playlist.endpoint ? ` (${playlist.endpoint})` : "";
+    const attempts = playlist.attempts ? ` Intentos: ${playlist.attempts}.` : "";
     const owner = playlist.owner?.id ? ` Dueno: ${playlist.owner.id}. Tu usuario: ${playlist.currentUserId || "desconocido"}.` : "";
-    throw new Error(`Spotify playlist ${response.status}: ${playlist.error || "Forbidden"}${owner}${endpoint}`);
+    throw new Error(`Spotify playlist ${response.status}: ${playlist.error || "Forbidden"}.${attempts}${owner}${endpoint}`);
   }
   playlistTracks = playlist.tracks || [];
   await api("/api/round", { round: null, playlistName: playlist.name || "Playlist", clipSeconds: Number(elements.clipSeconds.value) });
