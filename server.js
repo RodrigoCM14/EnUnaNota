@@ -251,6 +251,25 @@ async function refreshSpotifySession(session) {
   return true;
 }
 
+async function spotifyApi(session, spotifyPath, options = {}) {
+  const refreshed = await refreshSpotifySession(session);
+  if (!refreshed) {
+    return { ok: false, status: 401, data: { error: { message: "Sesion Spotify no conectada" } } };
+  }
+  const response = await fetch(`https://api.spotify.com/v1${spotifyPath}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${session.accessToken}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+  const data = response.status === 204 ? null : await response.json().catch(() => ({
+    error: { message: response.statusText || "Respuesta invalida de Spotify" }
+  }));
+  return { ok: response.ok, status: response.status, data };
+}
+
 async function startSpotifyLogin(req, res, searchParams) {
   const origin = originFromRequest(req);
   const sid = parseCookies(req).spotify_sid || randomString(32);
@@ -378,6 +397,42 @@ async function handleApi(req, res, pathname, searchParams) {
       accessToken: current.session.accessToken,
       expiresAt: current.session.expiresAt
     });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/spotify-playlist") {
+    const current = getSpotifySession(req);
+    if (!current) return sendJson(res, 401, { error: "Spotify no conectado" });
+    const playlistId = String(searchParams.get("id") || "").trim();
+    if (!/^[a-zA-Z0-9]{20,}$/.test(playlistId)) return sendJson(res, 400, { error: "Playlist ID invalido" });
+
+    const playlist = await spotifyApi(current.session, `/playlists/${playlistId}?fields=name`);
+    if (!playlist.ok) {
+      return sendJson(res, playlist.status, {
+        error: playlist.data?.error?.message || "No se pudo leer la playlist",
+        endpoint: `/playlists/${playlistId}?fields=name`,
+        spotify: playlist.data
+      });
+    }
+
+    let url = `/playlists/${playlistId}/tracks?limit=100`;
+    const tracks = [];
+    while (url) {
+      const page = await spotifyApi(current.session, url);
+      if (!page.ok) {
+        return sendJson(res, page.status, {
+          error: page.data?.error?.message || "No se pudieron leer las canciones",
+          endpoint: url,
+          spotify: page.data
+        });
+      }
+      for (const item of page.data.items || []) {
+        if (item.track?.type === "track" && item.track.uri) tracks.push(item.track);
+      }
+      url = page.data.next ? page.data.next.replace("https://api.spotify.com/v1", "") : "";
+    }
+
+    sendJson(res, 200, { name: playlist.data.name || "Playlist", tracks });
     return;
   }
 
