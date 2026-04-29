@@ -44,12 +44,13 @@
             <img id="joinQr" alt="QR para unir buzzers" src="">
             <button id="copyJoinUrl" type="button">Copiar enlace</button>
           </div>
+          <button id="resetGame" class="danger">Reiniciar juego</button>
         </aside>
 
         <section class="stage">
           <div class="now-playing" id="answerPanel">
             <img id="cover" alt="" src="">
-            <div>
+            <div class="track-copy">
               <p id="roundLabel">Playlist</p>
               <h2 id="trackTitle">Cancion</h2>
               <p id="trackArtist">Artista</p>
@@ -63,7 +64,6 @@
             <button id="playRound" class="huge">Reproducir cancion aleatoria</button>
             <button id="replayRound">Repetir fragmento</button>
             <button id="revealAnswer">Mostrar respuesta</button>
-            <button id="clearBuzzes">Limpiar buzzers</button>
           </div>
         </section>
 
@@ -75,8 +75,8 @@
           <div class="buzz-board">
             <h2>Orden de respuesta</h2>
             <ol id="buzzList"></ol>
+            <button id="clearBuzzes">Limpiar buzzers</button>
           </div>
-          <button id="resetGame" class="danger">Reiniciar juego</button>
         </aside>
       </section>
     </main>

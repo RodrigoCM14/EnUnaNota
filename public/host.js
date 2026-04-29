@@ -506,6 +506,9 @@ async function replayRound() {
 }
 
 async function revealAnswer() {
+  if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
+  pausePlaybackTimeoutId = null;
+  await spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
   answerVisible = true;
   render();
   if (state?.round) {
@@ -546,7 +549,7 @@ function render() {
   elements.answerPanel?.classList.toggle("answer-hidden", !showAnswer);
   elements.cover.classList.toggle("cover-placeholder", !hasCover);
   elements.cover.src = hasCover ? round.track.image : "";
-  elements.roundLabel.textContent = `${roundNumber} · ${playlistName}`;
+  elements.roundLabel.textContent = `${roundNumber} \u00b7 ${playlistName}`;
   elements.trackTitle.textContent = showAnswer && round ? round.track.name : "Cancion";
   elements.trackArtist.textContent = showAnswer && round ? round.track.artists : "Artista";
   updateRoundMeter();
