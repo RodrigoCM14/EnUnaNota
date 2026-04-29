@@ -566,8 +566,13 @@ async function handleApi(req, res, pathname, searchParams) {
     if (delta > 0 && !room.winner && player.score >= room.pointTarget) {
       room.winner = { id: player.id, name: player.name, score: player.score };
     }
-    room.buzzes = room.buzzes.filter(item => item.playerId !== player.id);
-    player.buzzedAt = null;
+    if (delta > 0) {
+      room.buzzes = [];
+      for (const participant of Object.values(room.players)) participant.buzzedAt = null;
+    } else {
+      room.buzzes = room.buzzes.filter(item => item.playerId !== player.id);
+      player.buzzedAt = null;
+    }
     touch(room);
     sendJson(res, 200, { room: publicRoom(room) });
     return;
