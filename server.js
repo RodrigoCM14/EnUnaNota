@@ -236,6 +236,7 @@ function saveSpotifyToken(session, token) {
   session.accessToken = token.access_token || session.accessToken || "";
   session.refreshToken = token.refresh_token || session.refreshToken || "";
   session.expiresAt = Date.now() + Number(token.expires_in || 3600) * 1000;
+  session.scope = token.scope || session.scope || "";
 }
 
 async function refreshSpotifySession(session) {
@@ -377,6 +378,7 @@ async function handleApi(req, res, pathname, searchParams) {
     sendJson(res, 200, {
       hasSession: Boolean(current),
       sessionConnected: Boolean(current?.session?.accessToken),
+      scope: current?.session?.scope || "",
       events: oauthEvents
     });
     return;
@@ -395,7 +397,8 @@ async function handleApi(req, res, pathname, searchParams) {
     sendJson(res, 200, {
       connected: true,
       accessToken: current.session.accessToken,
-      expiresAt: current.session.expiresAt
+      expiresAt: current.session.expiresAt,
+      scope: current.session.scope || ""
     });
     return;
   }
@@ -415,7 +418,7 @@ async function handleApi(req, res, pathname, searchParams) {
       });
     }
 
-    let url = `/playlists/${playlistId}/tracks?limit=100`;
+    let url = `/playlists/${playlistId}/tracks?limit=100&fields=items(track(name,uri,type,duration_ms,artists(name),album(images(url)))),next`;
     const tracks = [];
     while (url) {
       const page = await spotifyApi(current.session, url);
