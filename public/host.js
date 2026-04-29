@@ -222,7 +222,7 @@ async function refreshSpotifyToken() {
   tokenExpiresAt = Number(session.expiresAt || Date.now() + 3600 * 1000);
   localStorage.setItem("spotify_access_token", accessToken);
   localStorage.setItem("spotify_expires_at", String(tokenExpiresAt));
-  setStatus("Spotify conectado");
+  setStatus(session.scope ? `Spotify conectado (${session.scope})` : "Spotify conectado");
   return true;
 }
 
