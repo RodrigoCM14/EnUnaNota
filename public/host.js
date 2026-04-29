@@ -243,7 +243,10 @@ async function spotify(path, options = {}) {
   });
   if (response.status === 204) return null;
   const data = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(data?.error?.message || "Error de Spotify");
+  if (!response.ok) {
+    const message = data?.error?.message || response.statusText || "Error de Spotify";
+    throw new Error(`Spotify API ${response.status}: ${message}`);
+  }
   return data;
 }
 
@@ -284,7 +287,6 @@ function playlistIdFromUrl(value) {
 }
 
 async function loadPlaylist() {
-  await initPlayer();
   const id = playlistIdFromUrl(elements.playlistUrl.value);
   if (!id) {
     setStatus("Pega una URL de playlist valida");
@@ -305,7 +307,7 @@ async function loadPlaylist() {
   }
   playlistTracks = tracks;
   await api("/api/round", { round: null, playlistName, clipSeconds: Number(elements.clipSeconds.value) });
-  setStatus(`${tracks.length} canciones cargadas`);
+  setStatus(`${tracks.length} canciones cargadas. Reproduce una ronda para iniciar Spotify.`);
 }
 
 async function playRound() {
@@ -473,7 +475,8 @@ elements.playlistUrl.value = localStorage.getItem("spotify_playlist_url") || "";
 elements.roomId.value = localStorage.getItem("room_id") || new URLSearchParams(location.search).get("room") || "default";
 finishAuth()
   .then(async () => {
-    if (!validToken()) await refreshSpotifyToken();
+    const serverSession = await refreshSpotifyToken();
+    if (!serverSession && validToken()) setStatus("Spotify conectado");
     const params = new URLSearchParams(location.search);
     if (validToken()) {
       sessionStorage.removeItem("spotify_auto_connect_attempted");
