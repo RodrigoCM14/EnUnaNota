@@ -19,6 +19,7 @@ const SPOTIFY_SCOPES = [
 
 const rooms = new Map();
 const clients = new Map();
+const spotifyAuthStates = new Map();
 
 function getRoom(id = "default") {
   if (!rooms.has(id)) {
@@ -139,6 +140,14 @@ function base64Url(buffer) {
   return buffer.toString("base64").replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
+function rememberSpotifyState(state, verifier) {
+  spotifyAuthStates.set(state, { verifier, createdAt: Date.now() });
+  const expiresBefore = Date.now() - 10 * 60 * 1000;
+  for (const [key, value] of spotifyAuthStates) {
+    if (value.createdAt < expiresBefore) spotifyAuthStates.delete(key);
+  }
+}
+
 async function handleApi(req, res, pathname, searchParams) {
   const roomId = searchParams.get("room") || "default";
   const room = getRoom(roomId);
@@ -184,7 +193,9 @@ async function handleApi(req, res, pathname, searchParams) {
     if (!clientId || !redirectUri) return sendJson(res, 400, { error: "Client ID y redirect URI requeridos" });
 
     const verifier = randomString(96);
+    const state = randomString(32);
     const challenge = base64Url(crypto.createHash("sha256").update(verifier).digest());
+    rememberSpotifyState(state, verifier);
     const auth = new URL("https://accounts.spotify.com/authorize");
     auth.searchParams.set("response_type", "code");
     auth.searchParams.set("client_id", clientId);
@@ -192,7 +203,8 @@ async function handleApi(req, res, pathname, searchParams) {
     auth.searchParams.set("code_challenge_method", "S256");
     auth.searchParams.set("code_challenge", challenge);
     auth.searchParams.set("redirect_uri", redirectUri);
-    sendJson(res, 200, { authUrl: auth.href, verifier });
+    auth.searchParams.set("state", state);
+    sendJson(res, 200, { authUrl: auth.href, verifier, state });
     return;
   }
 
@@ -203,9 +215,14 @@ async function handleApi(req, res, pathname, searchParams) {
       client_id: String(body.client_id || "")
     });
     if (grantType === "authorization_code") {
+      const state = String(body.state || "");
+      const remembered = state ? spotifyAuthStates.get(state) : null;
+      const verifier = String(body.code_verifier || remembered?.verifier || "");
+      if (state) spotifyAuthStates.delete(state);
+      if (!verifier) return sendJson(res, 400, { error: "Code verifier perdido. Inicia sesion otra vez." });
       tokenBody.set("code", String(body.code || ""));
       tokenBody.set("redirect_uri", String(body.redirect_uri || ""));
-      tokenBody.set("code_verifier", String(body.code_verifier || ""));
+      tokenBody.set("code_verifier", verifier);
     } else if (grantType === "refresh_token") {
       tokenBody.set("refresh_token", String(body.refresh_token || ""));
     } else {
