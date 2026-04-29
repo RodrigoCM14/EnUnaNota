@@ -18,6 +18,7 @@ const elements = {
   copyJoinUrl: $("#copyJoinUrl"),
   spotifyStatus: $("#spotifyStatus"),
   joinUrl: $("#joinUrl"),
+  answerPanel: $("#answerPanel"),
   cover: $("#cover"),
   roundLabel: $("#roundLabel"),
   trackTitle: $("#trackTitle"),
@@ -34,6 +35,7 @@ let tokenExpiresAt = Number(localStorage.getItem("spotify_expires_at") || 0);
 let spotifyPlayer = null;
 let spotifyDeviceId = "";
 let externalDeviceId = "";
+let activePlaybackDeviceId = "";
 let playlistTracks = [];
 let answerVisible = false;
 let eventSource = null;
@@ -137,6 +139,7 @@ async function disconnectSpotify() {
   refreshToken = "";
   tokenExpiresAt = 0;
   spotifyDeviceId = "";
+  activePlaybackDeviceId = "";
   spotifyPlayer?.disconnect?.();
   spotifyPlayer = null;
   setStatus("Spotify desconectado");
@@ -317,17 +320,23 @@ async function activateScreenPlayer() {
     body: JSON.stringify({ device_ids: [spotifyDeviceId], play: false })
   });
   externalDeviceId = "";
+  activePlaybackDeviceId = spotifyDeviceId;
   setStatus("Esta pantalla quedo activa para reproducir");
 }
 
 async function findSpotifyDevice() {
-  if (spotifyDeviceId) return spotifyDeviceId;
+  if (activePlaybackDeviceId) return activePlaybackDeviceId;
+  if (spotifyDeviceId) {
+    activePlaybackDeviceId = spotifyDeviceId;
+    return spotifyDeviceId;
+  }
   const data = await spotify("/me/player/devices");
   const devices = data?.devices || [];
   const active = devices.find(device => device.is_active);
   const usable = active || devices[0];
   if (usable?.id) {
     externalDeviceId = usable.id;
+    activePlaybackDeviceId = usable.id;
     setStatus(`Spotify listo en ${usable.name}`);
     return externalDeviceId;
   }
@@ -379,6 +388,7 @@ async function playRound() {
   const clipSeconds = Number(elements.clipSeconds.value || 5);
   const positionMs = 0;
   answerVisible = false;
+  activePlaybackDeviceId = deviceId;
   await spotify(`/me/player/play?device_id=${deviceId}`, {
     method: "PUT",
     body: JSON.stringify({ uris: [track.uri], position_ms: positionMs })
@@ -404,19 +414,19 @@ async function playRound() {
 }
 
 async function replayRound() {
-  await initPlayer().catch(error => setStatus(error.message));
   const round = state?.round;
   if (!round?.track?.uri) {
     setStatus("No hay fragmento para repetir");
     return;
   }
-  const deviceId = spotifyDeviceId || await findSpotifyDevice();
+  const deviceId = activePlaybackDeviceId || spotifyDeviceId || await findSpotifyDevice();
   if (!deviceId) {
     setStatus("Abre Spotify en algun dispositivo y presiona reproducir otra vez.");
     return;
   }
   const clipSeconds = Number(elements.clipSeconds.value || state.clipSeconds || 5);
   answerVisible = false;
+  activePlaybackDeviceId = deviceId;
   await spotify(`/me/player/play?device_id=${deviceId}`, {
     method: "PUT",
     body: JSON.stringify({ uris: [round.track.uri], position_ms: round.positionMs || 0 })
@@ -463,6 +473,7 @@ function render() {
   if (!state) return;
   const round = state.round;
   const showAnswer = answerVisible || round?.revealed;
+  elements.answerPanel.classList.toggle("hidden", !showAnswer || !round);
   elements.cover.src = showAnswer && round?.track?.image ? round.track.image : "";
   elements.roundLabel.textContent = state.playlistName || "Ronda lista";
   elements.trackTitle.textContent = showAnswer && round ? round.track.name : round ? "Adivina la cancion" : "Carga una playlist y empieza";
