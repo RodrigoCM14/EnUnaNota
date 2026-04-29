@@ -8,6 +8,7 @@ const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
 const PUBLIC_URL = process.env.PUBLIC_URL || "";
 const DEFAULT_SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || "8791a946e68c476cac41c3d5023a86a7";
+const POINT_TARGET = 10;
 const SPOTIFY_SCOPES = [
   "streaming",
   "user-read-email",
@@ -40,8 +41,11 @@ function getRoom(id = "default") {
       players: {},
       buzzes: [],
       round: null,
+      roundNumber: 0,
       clipSeconds: 10,
       playlistName: "",
+      pointTarget: POINT_TARGET,
+      winner: null,
       updatedAt: Date.now()
     });
   }
@@ -54,8 +58,11 @@ function publicRoom(room) {
     players: Object.values(room.players).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)),
     buzzes: room.buzzes,
     round: room.round,
+    roundNumber: room.roundNumber,
     clipSeconds: room.clipSeconds,
     playlistName: room.playlistName,
+    pointTarget: room.pointTarget,
+    winner: room.winner,
     updatedAt: room.updatedAt
   };
 }
@@ -530,6 +537,13 @@ async function handleApi(req, res, pathname, searchParams) {
     const delta = Number(body.delta);
     if (!player || !Number.isFinite(delta)) return sendJson(res, 400, { error: "Puntaje invalido" });
     player.score += delta;
+    if (delta > 0 && room.round) {
+      room.round.revealed = true;
+      room.round.stoppedAt = room.round.stoppedAt || Date.now();
+    }
+    if (delta > 0 && !room.winner && player.score >= room.pointTarget) {
+      room.winner = { id: player.id, name: player.name, score: player.score };
+    }
     room.buzzes = room.buzzes.filter(item => item.playerId !== player.id);
     player.buzzedAt = null;
     touch(room);
@@ -546,6 +560,7 @@ async function handleApi(req, res, pathname, searchParams) {
   }
 
   if (pathname === "/api/round") {
+    if (body.incrementRound && body.round) room.roundNumber += 1;
     room.round = body.round || null;
     const clipSeconds = Number(body.clipSeconds);
     if (Number.isFinite(clipSeconds)) {
@@ -565,7 +580,9 @@ async function handleApi(req, res, pathname, searchParams) {
     room.players = {};
     room.buzzes = [];
     room.round = null;
+    room.roundNumber = 0;
     room.playlistName = "";
+    room.winner = null;
     touch(room);
     sendJson(res, 200, { room: publicRoom(room) });
     return;
