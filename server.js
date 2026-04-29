@@ -400,58 +400,6 @@ async function handleApi(req, res, pathname, searchParams) {
     return;
   }
 
-  if (pathname === "/api/spotify-auth") {
-    const clientId = String(body.client_id || "").trim();
-    const redirectUri = String(body.redirect_uri || "").trim();
-    if (!clientId || !redirectUri) return sendJson(res, 400, { error: "Client ID y redirect URI requeridos" });
-
-    const verifier = randomString(96);
-    const state = randomString(32);
-    const challenge = base64Url(crypto.createHash("sha256").update(verifier).digest());
-    rememberSpotifyState(state, { verifier, clientId, redirectUri, sid: parseCookies(req).spotify_sid || randomString(32), origin: originFromRequest(req) });
-    const auth = new URL("https://accounts.spotify.com/authorize");
-    auth.searchParams.set("response_type", "code");
-    auth.searchParams.set("client_id", clientId);
-    auth.searchParams.set("scope", SPOTIFY_SCOPES.join(" "));
-    auth.searchParams.set("code_challenge_method", "S256");
-    auth.searchParams.set("code_challenge", challenge);
-    auth.searchParams.set("redirect_uri", redirectUri);
-    auth.searchParams.set("state", state);
-    sendJson(res, 200, { authUrl: auth.href, verifier, state });
-    return;
-  }
-
-  if (pathname === "/api/spotify-token") {
-    const grantType = String(body.grant_type || "");
-    const tokenBody = new URLSearchParams({
-      grant_type: grantType,
-      client_id: String(body.client_id || "")
-    });
-    if (grantType === "authorization_code") {
-      const state = String(body.state || "");
-      const remembered = state ? spotifyAuthStates.get(state) : null;
-      const verifier = String(body.code_verifier || remembered?.verifier || "");
-      if (state) spotifyAuthStates.delete(state);
-      if (!verifier) return sendJson(res, 400, { error: "Code verifier perdido. Inicia sesion otra vez." });
-      tokenBody.set("code", String(body.code || ""));
-      tokenBody.set("redirect_uri", String(body.redirect_uri || ""));
-      tokenBody.set("code_verifier", verifier);
-    } else if (grantType === "refresh_token") {
-      tokenBody.set("refresh_token", String(body.refresh_token || ""));
-    } else {
-      return sendJson(res, 400, { error: "Grant type invalido" });
-    }
-
-    const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: tokenBody
-    });
-    const token = await tokenResponse.json().catch(() => ({ error: "Respuesta invalida de Spotify" }));
-    sendJson(res, tokenResponse.status, token);
-    return;
-  }
-
   if (pathname === "/api/join") {
     const name = String(body.name || "").trim().slice(0, 24);
     if (!name) return sendJson(res, 400, { error: "Nombre requerido" });
