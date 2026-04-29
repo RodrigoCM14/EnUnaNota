@@ -32,9 +32,13 @@ const elements = {
   scoreboard: $("#scoreboard")
 };
 
-let accessToken = localStorage.getItem("spotify_access_token") || "";
-let refreshToken = localStorage.getItem("spotify_refresh_token") || "";
-let tokenExpiresAt = Number(localStorage.getItem("spotify_expires_at") || 0);
+localStorage.removeItem("spotify_access_token");
+localStorage.removeItem("spotify_refresh_token");
+localStorage.removeItem("spotify_expires_at");
+
+let accessToken = "";
+let refreshToken = "";
+let tokenExpiresAt = 0;
 let spotifyPlayer = null;
 let spotifyDeviceId = "";
 let externalDeviceId = "";
@@ -168,13 +172,22 @@ async function disconnectSpotify() {
   setStatus("Spotify desconectado");
 }
 
+async function forgetSpotifySessionOnFreshLoad() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("spotify") || params.get("code") || params.get("error") || params.get("connect") === "spotify") return;
+  await fetch("/api/spotify-logout", { method: "POST" }).catch(() => {});
+  accessToken = "";
+  refreshToken = "";
+  tokenExpiresAt = 0;
+  spotifyDeviceId = "";
+  activePlaybackDeviceId = "";
+  setStatus("Spotify sin conectar");
+}
+
 function saveToken(token) {
   accessToken = token.access_token || accessToken;
   refreshToken = token.refresh_token || refreshToken;
   tokenExpiresAt = Date.now() + Number(token.expires_in || 3600) * 1000;
-  localStorage.setItem("spotify_access_token", accessToken);
-  localStorage.setItem("spotify_expires_at", String(tokenExpiresAt));
-  if (refreshToken) localStorage.setItem("spotify_refresh_token", refreshToken);
 }
 
 async function spotifyToken(body) {
@@ -193,23 +206,23 @@ async function finishAuth() {
   if (spotifyResult === "connected") {
     history.replaceState({}, "", location.pathname);
     setStatus("Spotify conectado. Carga una playlist para iniciar el reproductor.");
-    return;
+    return "connected";
   }
   if (spotifyResult === "error") {
     const message = params.get("message") || "No se pudo conectar Spotify";
     history.replaceState({}, "", location.pathname);
     setStatus(`Spotify: ${message}`);
-    return;
+    return "error";
   }
   const authError = params.get("error");
   if (authError) {
     const description = params.get("error_description");
     setStatus(description || `Spotify devolvio error: ${authError}`);
     history.replaceState({}, "", location.pathname);
-    return;
+    return "error";
   }
   const code = params.get("code");
-  if (!code) return;
+  if (!code) return "";
   const stateParam = params.get("state") || "";
   const clientId = localStorage.getItem("spotify_client_id") || spotifyClientId();
   const storedState = localStorage.getItem("spotify_auth_state") || "";
@@ -217,7 +230,7 @@ async function finishAuth() {
   if (storedState && stateParam && storedState !== stateParam) {
     setStatus("Spotify devolvio una sesion distinta. Conecta otra vez.");
     history.replaceState({}, "", location.pathname);
-    return;
+    return "error";
   }
   const redirectUri = spotifyRedirectUri();
   const { response, token } = await spotifyToken({
@@ -232,12 +245,13 @@ async function finishAuth() {
   if (!response.ok || !token.access_token) {
     const detail = token.error_description || token.error || "No se pudo conectar Spotify";
     setStatus(`Spotify token ${response.status}: ${detail}`);
-    return;
+    return "error";
   }
   saveToken(token);
   localStorage.removeItem("spotify_code_verifier");
   localStorage.removeItem("spotify_auth_state");
   setStatus("Spotify conectado");
+  return "connected";
 }
 
 async function refreshSpotifyToken() {
@@ -248,8 +262,6 @@ async function refreshSpotifyToken() {
   }
   accessToken = session.accessToken;
   tokenExpiresAt = Number(session.expiresAt || Date.now() + 3600 * 1000);
-  localStorage.setItem("spotify_access_token", accessToken);
-  localStorage.setItem("spotify_expires_at", String(tokenExpiresAt));
   setStatus(session.scope ? `Spotify conectado (${session.scope})` : "Spotify conectado");
   return true;
 }
@@ -621,11 +633,12 @@ elements.playlistUrl.value = localStorage.getItem("spotify_playlist_url") || "";
 if (elements.roomId) {
   elements.roomId.value = localStorage.getItem("room_id") || new URLSearchParams(location.search).get("room") || "default";
 }
-finishAuth()
-  .then(async () => {
-    const serverSession = await refreshSpotifyToken();
-    if (!serverSession && validToken()) setStatus("Spotify conectado");
+forgetSpotifySessionOnFreshLoad()
+  .then(() => finishAuth())
+  .then(async authResult => {
     const params = new URLSearchParams(location.search);
+    const serverSession = authResult === "connected" ? await refreshSpotifyToken() : false;
+    if (!serverSession && validToken()) setStatus("Spotify conectado");
     if (validToken()) {
       sessionStorage.removeItem("spotify_auto_connect_attempted");
       activateScreenPlayer().catch(() => setStatus("Spotify conectado. Reactiva el reproductor si no suena en pantalla"));
