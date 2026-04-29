@@ -119,20 +119,10 @@ async function connectSpotify() {
     return;
   }
   localStorage.setItem("spotify_client_id", clientId);
-  const redirectUri = spotifyRedirectUri();
-  setStatus(`Conectando con Spotify via ${redirectUri}`);
-  const response = await fetch("/api/spotify-auth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ client_id: clientId, redirect_uri: redirectUri })
-  });
-  const auth = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
-  if (!response.ok || !auth.authUrl || !auth.verifier || !auth.state) {
-    throw new Error(auth.error || "No se pudo preparar login de Spotify");
-  }
-  localStorage.setItem("spotify_code_verifier", auth.verifier);
-  localStorage.setItem("spotify_auth_state", auth.state);
-  location.assign(auth.authUrl);
+  const url = new URL("/api/spotify-login", location.origin);
+  url.searchParams.set("client_id", clientId);
+  setStatus("Abriendo login de Spotify...");
+  location.assign(url.href);
 }
 
 function saveToken(token) {
@@ -156,6 +146,18 @@ async function spotifyToken(body) {
 
 async function finishAuth() {
   const params = new URLSearchParams(location.search);
+  const spotifyResult = params.get("spotify");
+  if (spotifyResult === "connected") {
+    history.replaceState({}, "", location.pathname);
+    setStatus("Spotify autorizado, iniciando reproductor...");
+    return;
+  }
+  if (spotifyResult === "error") {
+    const message = params.get("message") || "No se pudo conectar Spotify";
+    history.replaceState({}, "", location.pathname);
+    setStatus(`Spotify: ${message}`);
+    return;
+  }
   const authError = params.get("error");
   if (authError) {
     const description = params.get("error_description");
@@ -196,22 +198,15 @@ async function finishAuth() {
 }
 
 async function refreshSpotifyToken() {
-  if (!refreshToken) return false;
-  const { response, token } = await spotifyToken({
-    grant_type: "refresh_token",
-    refresh_token: refreshToken,
-    client_id: spotifyClientId()
-  });
-  if (!response.ok || !token.access_token) {
-    localStorage.removeItem("spotify_access_token");
-    localStorage.removeItem("spotify_refresh_token");
-    localStorage.removeItem("spotify_expires_at");
-    accessToken = "";
-    refreshToken = "";
-    tokenExpiresAt = 0;
+  const response = await fetch("/api/spotify-session");
+  const session = await response.json().catch(() => ({ connected: false }));
+  if (!response.ok || !session.connected || !session.accessToken) {
     return false;
   }
-  saveToken(token);
+  accessToken = session.accessToken;
+  tokenExpiresAt = Number(session.expiresAt || Date.now() + 3600 * 1000);
+  localStorage.setItem("spotify_access_token", accessToken);
+  localStorage.setItem("spotify_expires_at", String(tokenExpiresAt));
   setStatus("Spotify conectado");
   return true;
 }
