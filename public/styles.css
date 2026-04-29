@@ -396,6 +396,25 @@ h2 {
   white-space: nowrap;
 }
 
+.score-action {
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 10px;
+  font-weight: 900;
+}
+
+.score-action.positive {
+  border-color: rgba(38, 208, 124, 0.75);
+  background: rgba(38, 208, 124, 0.16);
+  color: var(--accent-2);
+}
+
+.score-action.negative {
+  border-color: rgba(255, 106, 95, 0.7);
+  background: rgba(255, 106, 95, 0.14);
+  color: var(--danger);
+}
+
 .scoreboard {
   display: grid;
   gap: 10px;

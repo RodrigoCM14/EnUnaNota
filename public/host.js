@@ -1,11 +1,11 @@
 const $ = selector => document.querySelector(selector);
 
 const DEFAULT_SPOTIFY_CLIENT_ID = "8791a946e68c476cac41c3d5023a86a7";
+const DEFAULT_CLIP_SECONDS = 10;
 
 const elements = {
   clientId: $("#clientId"),
   playlistUrl: $("#playlistUrl"),
-  clipSeconds: $("#clipSeconds"),
   roomId: $("#roomId"),
   connectSpotify: $("#connectSpotify"),
   activateScreenPlayer: $("#activateScreenPlayer"),
@@ -283,7 +283,7 @@ async function markRoundStopped() {
   if (!state?.round || state.round.revealed || state.round.stoppedAt) return;
   await api("/api/round", {
     round: { ...state.round, stoppedAt: Date.now() },
-    clipSeconds: Number(elements.clipSeconds.value || state.clipSeconds || 5),
+    clipSeconds: Number(state.clipSeconds || DEFAULT_CLIP_SECONDS),
     clearBuzzes: false
   });
 }
@@ -425,7 +425,7 @@ async function loadPlaylist() {
     throw new Error(`Spotify playlist ${response.status}: ${playlist.error || "Forbidden"}.${attempts}${owner}${endpoint}`);
   }
   playlistTracks = playlist.tracks || [];
-  await api("/api/round", { round: null, playlistName: playlist.name || "Playlist", clipSeconds: Number(elements.clipSeconds.value) });
+  await api("/api/round", { round: null, playlistName: playlist.name || "Playlist", clipSeconds: DEFAULT_CLIP_SECONDS });
   if (!playlistTracks.length && playlist.summary) {
     setStatus(`0 canciones. Items: ${playlist.summary.items}, tracks: ${playlist.summary.playableTracks}, no tracks: ${playlist.summary.nonTracks}`);
     return;
@@ -445,7 +445,7 @@ async function playRound() {
     return;
   }
   const track = playlistTracks[Math.floor(Math.random() * playlistTracks.length)];
-  const clipSeconds = Number(elements.clipSeconds.value || 5);
+  const clipSeconds = DEFAULT_CLIP_SECONDS;
   const positionMs = 0;
   answerVisible = false;
   const startedAt = Date.now() + PLAYBACK_START_DELAY_MS;
@@ -486,7 +486,7 @@ async function replayRound() {
     setStatus("Abre Spotify en algun dispositivo y presiona reproducir otra vez.");
     return;
   }
-  const clipSeconds = Number(elements.clipSeconds.value || state.clipSeconds || 5);
+  const clipSeconds = Number(state.clipSeconds || DEFAULT_CLIP_SECONDS);
   answerVisible = false;
   activePlaybackDeviceId = deviceId;
   const startedAt = Date.now() + PLAYBACK_START_DELAY_MS;
@@ -514,7 +514,7 @@ async function revealAnswer() {
   if (state?.round) {
     await api("/api/round", {
       round: { ...state.round, revealed: true },
-      clipSeconds: Number(elements.clipSeconds.value),
+      clipSeconds: Number(state.clipSeconds || DEFAULT_CLIP_SECONDS),
       clearBuzzes: false
     });
     setStatus("Respuesta mostrada");
@@ -530,7 +530,7 @@ function updateRoundMeter() {
     elements.roundProgress.style.width = "0%";
     return;
   }
-  const total = Number(state.clipSeconds || elements.clipSeconds.value || 5) * 1000;
+  const total = Number(state.clipSeconds || DEFAULT_CLIP_SECONDS) * 1000;
   const effectiveNow = round.stoppedAt || Date.now();
   const elapsed = effectiveNow - round.startedAt;
   const remaining = Math.min(total, Math.max(0, total - elapsed));
@@ -558,7 +558,7 @@ function render() {
   state.buzzes.forEach((buzz, index) => {
     const li = document.createElement("li");
     li.className = "buzz-item";
-    li.innerHTML = `<strong><span>${index + 1}.</span> ${buzz.name}</strong><button data-score="1" data-player="${buzz.playerId}">Correcto +1</button><button data-score="-1" data-player="${buzz.playerId}">Fallo -1</button>`;
+    li.innerHTML = `<strong><span>${index + 1}.</span> ${buzz.name}</strong><button class="score-action positive" data-score="1" data-player="${buzz.playerId}">+1</button><button class="score-action negative" data-score="-1" data-player="${buzz.playerId}">-1</button>`;
     elements.buzzList.append(li);
   });
   if (!state.buzzes.length) {
