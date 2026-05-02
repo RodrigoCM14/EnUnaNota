@@ -301,13 +301,13 @@ async function playRoundBeep() {
   oscillator.type = "sine";
   oscillator.frequency.value = 880;
   gain.gain.setValueAtTime(0.0001, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.22);
+  gain.gain.exponentialRampToValueAtTime(0.34, context.currentTime + 0.025);
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.42);
   oscillator.connect(gain);
   gain.connect(context.destination);
   oscillator.start();
-  oscillator.stop(context.currentTime + 0.24);
-  window.setTimeout(() => context.close().catch(() => {}), 320);
+  oscillator.stop(context.currentTime + 0.44);
+  window.setTimeout(() => context.close().catch(() => {}), 540);
 }
 
 function savePlayedTracks() {
@@ -542,6 +542,12 @@ async function playRound() {
     method: "PUT",
     body: JSON.stringify({ uris: [track.uri], position_ms: positionMs })
   });
+  await api("/api/round", {
+    clipSeconds,
+    playlistName: state?.playlistName || "",
+    clearBuzzes: false,
+    round: { ...state.round, startedAt: Date.now(), stoppedAt: null }
+  });
   schedulePlaybackPause(clipSeconds);
 }
 
@@ -571,6 +577,12 @@ async function replayRound() {
   await spotify(`/me/player/play?device_id=${deviceId}`, {
     method: "PUT",
     body: JSON.stringify({ uris: [round.track.uri], position_ms: round.positionMs || 0 })
+  });
+  await api("/api/round", {
+    clipSeconds,
+    playlistName: state?.playlistName || "",
+    clearBuzzes: false,
+    round: { ...state.round, startedAt: Date.now(), stoppedAt: null }
   });
   schedulePlaybackPause(clipSeconds);
   setStatus("Fragmento repetido");
