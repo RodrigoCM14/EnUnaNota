@@ -342,7 +342,7 @@ h2 {
 
 .controls {
   display: grid;
-  grid-template-columns: 1.35fr repeat(3, minmax(120px, 0.75fr));
+  grid-template-columns: 1.35fr repeat(4, minmax(116px, 0.72fr));
   gap: 8px;
 }
 
@@ -361,8 +361,8 @@ h2 {
 }
 
 .buzz-board {
-  border-top: 1px solid var(--line);
-  padding-top: 18px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
 }
 
 .buzz-board ol {
@@ -380,13 +380,27 @@ h2 {
 .buzz-item,
 .score-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: center;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #15171c;
+}
+
+.buzz-item {
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+
+.score-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.buzz-time {
+  min-width: 44px;
+  color: var(--accent);
+  font-weight: 900;
+  text-align: right;
 }
 
 .buzz-item strong,
@@ -445,6 +459,65 @@ h2 {
   color: var(--accent-2);
 }
 
+.golden-goal-banner {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgba(255, 204, 69, 0.7);
+  border-radius: 8px;
+  background: rgba(255, 204, 69, 0.12);
+  color: var(--accent);
+  font-weight: 900;
+  text-align: center;
+}
+
+#goldenGoal {
+  border-color: rgba(255, 204, 69, 0.75);
+  color: var(--accent);
+}
+
+.winner-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 17, 20, 0.78);
+}
+
+.winner-modal.hidden {
+  display: none;
+}
+
+.winner-card {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 14px;
+  padding: 28px;
+  border: 1px solid rgba(38, 208, 124, 0.65);
+  border-radius: 8px;
+  background: var(--panel);
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.winner-card p {
+  margin: 0;
+  color: var(--accent-2);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.winner-card h2 {
+  margin: 0;
+  font-size: clamp(2rem, 7vw, 4rem);
+}
+
+.winner-card span {
+  color: var(--accent);
+  font-weight: 900;
+}
+
 .phone {
   width: min(100%, 520px);
   min-height: 100vh;
@@ -458,6 +531,14 @@ h2 {
 .buzzer-screen {
   display: grid;
   gap: 16px;
+}
+
+.join-error {
+  min-height: 24px;
+  margin: 0;
+  color: var(--danger);
+  font-weight: 800;
+  text-align: center;
 }
 
 .buzzer-screen {

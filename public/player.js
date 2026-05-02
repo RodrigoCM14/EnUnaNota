@@ -3,6 +3,7 @@ const $ = selector => document.querySelector(selector);
 const joinScreen = $("#joinScreen");
 const buzzerScreen = $("#buzzerScreen");
 const playerName = $("#playerName");
+const joinError = $("#joinError");
 const joinGame = $("#joinGame");
 const buzzButton = $("#buzzButton");
 const hello = $("#hello");
@@ -33,6 +34,7 @@ function api(path, body) {
 
 async function join() {
   const name = playerName.value.trim();
+  joinError.textContent = "";
   if (!name) {
     playerName.focus();
     return;
@@ -41,7 +43,7 @@ async function join() {
   localStorage.setItem("en_una_nota_room", room());
   const result = await api("/api/join", { id: playerId, name });
   if (result.error) {
-    buzzState.textContent = result.error;
+    joinError.textContent = result.error;
     return;
   }
   joinScreen.classList.add("hidden");

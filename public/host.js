@@ -15,6 +15,7 @@ const elements = {
   replayRound: $("#replayRound"),
   revealAnswer: $("#revealAnswer"),
   continueSong: $("#continueSong"),
+  goldenGoal: $("#goldenGoal"),
   clearBuzzes: $("#clearBuzzes"),
   resetGame: $("#resetGame"),
   copyJoinUrl: $("#copyJoinUrl"),
@@ -30,7 +31,11 @@ const elements = {
   roundTimer: $("#roundTimer"),
   roundProgress: $("#roundProgress"),
   buzzList: $("#buzzList"),
-  scoreboard: $("#scoreboard")
+  scoreboard: $("#scoreboard"),
+  winnerModal: $("#winnerModal"),
+  winnerTitle: $("#winnerTitle"),
+  winnerScore: $("#winnerScore"),
+  closeWinnerModal: $("#closeWinnerModal")
 };
 
 localStorage.removeItem("spotify_access_token");
@@ -49,6 +54,7 @@ let playedTrackUris = new Set(JSON.parse(localStorage.getItem("played_track_uris
 let answerVisible = false;
 let eventSource = null;
 let state = null;
+let lastWinnerId = "";
 let phoneBaseUrl = "";
 let timerId = null;
 let pausePlaybackTimeoutId = null;
@@ -83,7 +89,7 @@ function api(path, body) {
 
 function setStatus(text) {
   const disconnected = /sin conectar|desconectado|error|no se pudo|conecta spotify|premium requerido|pendiente/i.test(text);
-  const connected = !disconnected && /conectado|listo|activa|cargad|repetido|mostrada|continuando/i.test(text);
+  const connected = !disconnected && /conectado|listo|activa|cargad|repetido|mostrada|continuando|gol de oro/i.test(text);
   elements.spotifyStatus.textContent = connected ? "\u2713" : "\u2715";
   elements.spotifyStatus.title = text;
   elements.spotifyStatus.setAttribute("aria-label", text);
@@ -283,6 +289,25 @@ function schedulePlaybackPause(clipSeconds) {
 
 function wait(ms) {
   return new Promise(resolve => window.setTimeout(resolve, ms));
+}
+
+async function playRoundBeep() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+  const context = new AudioContext();
+  await context.resume();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = "sine";
+  oscillator.frequency.value = 880;
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.22);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start();
+  oscillator.stop(context.currentTime + 0.24);
+  window.setTimeout(() => context.close().catch(() => {}), 320);
 }
 
 function savePlayedTracks() {
@@ -511,6 +536,7 @@ async function playRound() {
     }
   });
   activePlaybackDeviceId = deviceId;
+  await playRoundBeep().catch(() => {});
   await wait(PLAYBACK_START_DELAY_MS);
   await spotify(`/me/player/play?device_id=${deviceId}`, {
     method: "PUT",
@@ -540,6 +566,7 @@ async function replayRound() {
     clearBuzzes: false,
     round: { ...round, startedAt, stoppedAt: null, revealed: false }
   });
+  await playRoundBeep().catch(() => {});
   await wait(PLAYBACK_START_DELAY_MS);
   await spotify(`/me/player/play?device_id=${deviceId}`, {
     method: "PUT",
@@ -584,6 +611,29 @@ async function continueSong() {
   setStatus("Cancion continuando");
 }
 
+async function activateGoldenGoal() {
+  await api("/api/golden-goal");
+  closeWinnerModal();
+  setStatus("Gol de Oro activo");
+}
+
+function formatBuzzTime(buzz) {
+  const startedAt = Number(state?.round?.startedAt || buzz.at);
+  const elapsed = Math.max(0, Number(buzz.at || Date.now()) - startedAt);
+  return `${(elapsed / 1000).toFixed(1)}s`;
+}
+
+function showWinnerModal(winner) {
+  if (!winner || !elements.winnerModal) return;
+  elements.winnerTitle.textContent = winner.name || "Jugador";
+  elements.winnerScore.textContent = `${winner.score || 0} pts`;
+  elements.winnerModal.classList.remove("hidden");
+}
+
+function closeWinnerModal() {
+  elements.winnerModal?.classList.add("hidden");
+}
+
 function updateRoundMeter() {
   const round = state?.round;
   if (!round || round.revealed) {
@@ -619,7 +669,7 @@ function render() {
   state.buzzes.forEach((buzz, index) => {
     const li = document.createElement("li");
     li.className = "buzz-item";
-    li.innerHTML = `<strong><span>${index + 1}.</span> ${buzz.name}</strong><button class="score-action positive" data-score="1" data-player="${buzz.playerId}">+1</button><button class="score-action negative" data-score="-1" data-player="${buzz.playerId}">-1</button>`;
+    li.innerHTML = `<strong><span>${index + 1}.</span> ${buzz.name}</strong><span class="buzz-time">${formatBuzzTime(buzz)}</span><button class="score-action positive" data-score="1" data-player="${buzz.playerId}">+1</button><button class="score-action negative" data-score="-1" data-player="${buzz.playerId}">-1</button>`;
     elements.buzzList.append(li);
   });
   if (!state.buzzes.length) {
@@ -629,16 +679,30 @@ function render() {
   }
 
   elements.scoreboard.innerHTML = "";
+  if (state.goldenGoal) {
+    const banner = document.createElement("p");
+    banner.className = "golden-goal-banner";
+    banner.textContent = "Gol de Oro activo";
+    elements.scoreboard.append(banner);
+  }
   for (const player of state.players) {
     const row = document.createElement("div");
     const isWinner = state.winner?.id === player.id;
     row.className = "score-row";
     row.classList.toggle("winner", isWinner);
+    const suffix = isWinner ? " - Ganador" : "";
     row.innerHTML = `<strong>${player.name}${isWinner ? " · Ganador" : ""}</strong><span class="score">${player.score}</span><span>/${state.pointTarget || 10}</span>`;
+    row.innerHTML = `<strong>${player.name}${suffix}</strong><span class="score">${player.score}</span><span>/${state.pointTarget || 10}</span>`;
     elements.scoreboard.append(row);
   }
   if (!state.players.length) {
     elements.scoreboard.innerHTML = `<p class="muted">Esperando jugadores...</p>`;
+  }
+  if (state.winner?.id && state.winner.id !== lastWinnerId) {
+    lastWinnerId = state.winner.id;
+    showWinnerModal(state.winner);
+  } else if (!state.winner) {
+    lastWinnerId = "";
   }
 }
 
@@ -661,7 +725,9 @@ elements.playRound.addEventListener("click", () => playRound().catch(error => se
 elements.replayRound.addEventListener("click", () => replayRound().catch(error => setStatus(error.message)));
 elements.revealAnswer.addEventListener("click", () => revealAnswer().catch(error => setStatus(error.message)));
 elements.continueSong.addEventListener("click", () => continueSong().catch(error => setStatus(error.message)));
+elements.goldenGoal.addEventListener("click", () => activateGoldenGoal().catch(error => setStatus(error.message)));
 elements.clearBuzzes.addEventListener("click", () => api("/api/clear-buzzes"));
+elements.closeWinnerModal.addEventListener("click", closeWinnerModal);
 elements.resetGame.addEventListener("click", () => {
   if (!confirm("Reiniciar jugadores y puntajes?")) return;
   resetPlayedTracks();

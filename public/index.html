@@ -61,22 +61,31 @@
             <button id="replayRound">Repetir fragmento</button>
             <button id="revealAnswer">Mostrar respuesta</button>
             <button id="continueSong">Continuar cancion</button>
+            <button id="goldenGoal">Gol de Oro</button>
           </div>
         </section>
 
         <aside class="panel score-panel">
-          <div class="score-head">
-            <h2>Puntajes</h2>
-            <div id="scoreboard" class="scoreboard"></div>
-          </div>
           <div class="buzz-board">
             <h2>Orden de respuesta</h2>
             <ol id="buzzList"></ol>
             <button id="clearBuzzes">Limpiar buzzers</button>
           </div>
+          <div class="score-head">
+            <h2>Puntajes</h2>
+            <div id="scoreboard" class="scoreboard"></div>
+          </div>
         </aside>
       </section>
     </main>
+    <div class="winner-modal hidden" id="winnerModal" role="dialog" aria-modal="true" aria-labelledby="winnerTitle">
+      <div class="winner-card">
+        <p>Ganador</p>
+        <h2 id="winnerTitle">Jugador</h2>
+        <span id="winnerScore">0 pts</span>
+        <button id="closeWinnerModal" type="button">Cerrar</button>
+      </div>
+    </div>
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
     <script src="./host.js" type="module"></script>
   </body>
