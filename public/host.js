@@ -11,6 +11,8 @@ const elements = {
   activateScreenPlayer: $("#activateScreenPlayer"),
   disconnectSpotify: $("#disconnectSpotify"),
   loadPlaylist: $("#loadPlaylist"),
+  refreshPlaylists: $("#refreshPlaylists"),
+  playlistGrid: $("#playlistGrid"),
   playRound: $("#playRound"),
   replayRound: $("#replayRound"),
   revealAnswer: $("#revealAnswer"),
@@ -498,6 +500,40 @@ async function loadPlaylist() {
   setStatus(`${playlistTracks.length} canciones cargadas. Reproduce una ronda para iniciar Spotify.`);
 }
 
+async function loadUserPlaylists() {
+  elements.playlistGrid.innerHTML = `<p class="muted">Cargando playlists...</p>`;
+  const response = await fetch("/api/spotify-playlists");
+  const data = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
+  if (!response.ok) {
+    throw new Error(`Spotify playlists ${response.status}: ${data.error || "No se pudieron cargar playlists"}`);
+  }
+  renderPlaylistPicker(data.playlists || []);
+}
+
+function renderPlaylistPicker(playlists) {
+  elements.playlistGrid.innerHTML = "";
+  if (!playlists.length) {
+    elements.playlistGrid.innerHTML = `<p class="muted">No encontramos playlists en esta cuenta.</p>`;
+    return;
+  }
+  for (const playlist of playlists) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "playlist-card";
+    button.dataset.playlistId = playlist.id;
+    const image = playlist.image
+      ? `<img src="${playlist.image}" alt="">`
+      : `<div class="playlist-cover-placeholder"></div>`;
+    button.innerHTML = `${image}<span>${playlist.name}</span><small>${playlist.tracks} canciones</small>`;
+    elements.playlistGrid.append(button);
+  }
+}
+
+async function choosePlaylist(playlistId) {
+  elements.playlistUrl.value = `https://open.spotify.com/playlist/${playlistId}`;
+  await loadPlaylist();
+}
+
 async function playRound() {
   await initPlayer().catch(error => setStatus(error.message));
   const deviceId = spotifyDeviceId || await findSpotifyDevice();
@@ -733,6 +769,7 @@ elements.connectSpotify.addEventListener("click", () => connectSpotify().catch(e
 elements.activateScreenPlayer.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || "No se pudo activar esta pantalla")));
 elements.disconnectSpotify.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || "No se pudo desconectar Spotify")));
 elements.loadPlaylist.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
+elements.refreshPlaylists.addEventListener("click", () => loadUserPlaylists().catch(error => setStatus(error.message)));
 elements.playRound.addEventListener("click", () => playRound().catch(error => setStatus(error.message)));
 elements.replayRound.addEventListener("click", () => replayRound().catch(error => setStatus(error.message)));
 elements.revealAnswer.addEventListener("click", () => revealAnswer().catch(error => setStatus(error.message)));
@@ -756,6 +793,11 @@ elements.buzzList.addEventListener("click", event => {
   if (!button) return;
   api("/api/score", { playerId: button.dataset.player, delta: Number(button.dataset.score) });
 });
+elements.playlistGrid.addEventListener("click", event => {
+  const button = event.target.closest("button[data-playlist-id]");
+  if (!button) return;
+  choosePlaylist(button.dataset.playlistId).catch(error => setStatus(error.message));
+});
 
 if (elements.clientId) {
   elements.clientId.value = localStorage.getItem("spotify_client_id") || DEFAULT_SPOTIFY_CLIENT_ID;
@@ -773,6 +815,7 @@ forgetSpotifySessionOnFreshLoad()
     if (!serverSession && validToken()) setStatus("Spotify conectado");
     if (validToken()) {
       sessionStorage.removeItem("spotify_auto_connect_attempted");
+      loadUserPlaylists().catch(error => setStatus(error.message));
       activateScreenPlayer().catch(() => setStatus("Spotify conectado. Reactiva el reproductor si no suena en pantalla"));
     } else if (params.get("connect") === "spotify" && !params.has("code") && !params.has("error") && !sessionStorage.getItem("spotify_auto_connect_attempted")) {
       sessionStorage.setItem("spotify_auto_connect_attempted", "1");

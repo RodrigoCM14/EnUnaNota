@@ -34,6 +34,15 @@
             <input id="playlistUrl" autocomplete="off" placeholder="https://open.spotify.com/playlist/...">
           </label>
           <button id="loadPlaylist">Cargar playlist</button>
+          <div class="playlist-picker">
+            <div class="picker-head">
+              <span>Tus playlists</span>
+              <button id="refreshPlaylists" type="button">Actualizar</button>
+            </div>
+            <div id="playlistGrid" class="playlist-grid">
+              <p class="muted">Conecta Spotify para ver tus playlists.</p>
+            </div>
+          </div>
           <div class="join-box">
             <span>Jugadores</span>
             <strong id="joinUrl" class="visually-hidden">Abre /player</strong>
