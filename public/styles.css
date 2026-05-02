@@ -342,7 +342,7 @@ h2 {
 
 .controls {
   display: grid;
-  grid-template-columns: 1.4fr repeat(2, minmax(120px, 0.75fr));
+  grid-template-columns: 1.35fr repeat(3, minmax(120px, 0.75fr));
   gap: 8px;
 }
 

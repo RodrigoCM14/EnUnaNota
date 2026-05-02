@@ -14,6 +14,7 @@ const elements = {
   playRound: $("#playRound"),
   replayRound: $("#replayRound"),
   revealAnswer: $("#revealAnswer"),
+  continueSong: $("#continueSong"),
   clearBuzzes: $("#clearBuzzes"),
   resetGame: $("#resetGame"),
   copyJoinUrl: $("#copyJoinUrl"),
@@ -44,6 +45,7 @@ let spotifyDeviceId = "";
 let externalDeviceId = "";
 let activePlaybackDeviceId = "";
 let playlistTracks = [];
+let playedTrackUris = new Set(JSON.parse(localStorage.getItem("played_track_uris") || "[]"));
 let answerVisible = false;
 let eventSource = null;
 let state = null;
@@ -81,7 +83,7 @@ function api(path, body) {
 
 function setStatus(text) {
   const disconnected = /sin conectar|desconectado|error|no se pudo|conecta spotify|premium requerido|pendiente/i.test(text);
-  const connected = !disconnected && /conectado|listo|activa|cargad|repetido|mostrada/i.test(text);
+  const connected = !disconnected && /conectado|listo|activa|cargad|repetido|mostrada|continuando/i.test(text);
   elements.spotifyStatus.textContent = connected ? "\u2713" : "\u2715";
   elements.spotifyStatus.title = text;
   elements.spotifyStatus.setAttribute("aria-label", text);
@@ -283,6 +285,31 @@ function wait(ms) {
   return new Promise(resolve => window.setTimeout(resolve, ms));
 }
 
+function savePlayedTracks() {
+  localStorage.setItem("played_track_uris", JSON.stringify([...playedTrackUris]));
+}
+
+function resetPlayedTracks() {
+  playedTrackUris = new Set();
+  savePlayedTracks();
+}
+
+function pickUnplayedTrack() {
+  if (!playlistTracks.length) return null;
+  let availableTracks = playlistTracks.filter(track => track?.uri && !playedTrackUris.has(track.uri));
+  if (!availableTracks.length) {
+    resetPlayedTracks();
+    availableTracks = playlistTracks.filter(track => track?.uri);
+    setStatus("Todas las canciones sonaron. Reiniciando lista.");
+  }
+  const track = availableTracks[Math.floor(Math.random() * availableTracks.length)];
+  if (track?.uri) {
+    playedTrackUris.add(track.uri);
+    savePlayedTracks();
+  }
+  return track || null;
+}
+
 async function pausePlaybackForBuzz() {
   if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
   pausePlaybackTimeoutId = null;
@@ -437,6 +464,7 @@ async function loadPlaylist() {
     throw new Error(`Spotify playlist ${response.status}: ${playlist.error || "Forbidden"}.${attempts}${owner}${endpoint}`);
   }
   playlistTracks = playlist.tracks || [];
+  resetPlayedTracks();
   await api("/api/round", { round: null, playlistName: playlist.name || "Playlist", clipSeconds: DEFAULT_CLIP_SECONDS });
   if (!playlistTracks.length && playlist.summary) {
     setStatus(`0 canciones. Items: ${playlist.summary.items}, tracks: ${playlist.summary.playableTracks}, no tracks: ${playlist.summary.nonTracks}`);
@@ -456,7 +484,11 @@ async function playRound() {
     setStatus("Carga una playlist primero");
     return;
   }
-  const track = playlistTracks[Math.floor(Math.random() * playlistTracks.length)];
+  const track = pickUnplayedTrack();
+  if (!track) {
+    setStatus("No hay canciones disponibles");
+    return;
+  }
   const clipSeconds = DEFAULT_CLIP_SECONDS;
   const positionMs = 0;
   answerVisible = false;
@@ -518,21 +550,38 @@ async function replayRound() {
 }
 
 async function revealAnswer() {
-  if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
-  pausePlaybackTimeoutId = null;
-  await spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
   answerVisible = true;
   render();
   if (state?.round) {
-    await api("/api/round", {
-      round: { ...state.round, revealed: true },
-      clipSeconds: Number(state.clipSeconds || DEFAULT_CLIP_SECONDS),
-      clearBuzzes: true
-    });
     setStatus("Respuesta mostrada");
   } else {
     setStatus("No hay respuesta para mostrar");
   }
+}
+
+async function continueSong() {
+  const round = state?.round;
+  if (!round?.track?.uri) {
+    setStatus("No hay cancion para continuar");
+    return;
+  }
+  if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
+  pausePlaybackTimeoutId = null;
+  const deviceId = activePlaybackDeviceId || spotifyDeviceId || await findSpotifyDevice();
+  if (!deviceId) {
+    setStatus("Abre Spotify en algun dispositivo y presiona continuar otra vez.");
+    return;
+  }
+  const clipMs = Number(state.clipSeconds || DEFAULT_CLIP_SECONDS) * 1000;
+  const stoppedAt = round.stoppedAt || Date.now();
+  const elapsedMs = Math.min(clipMs, Math.max(0, stoppedAt - round.startedAt));
+  const positionMs = Math.max(0, Number(round.positionMs || 0) + elapsedMs);
+  activePlaybackDeviceId = deviceId;
+  await spotify(`/me/player/play?device_id=${deviceId}`, {
+    method: "PUT",
+    body: JSON.stringify({ uris: [round.track.uri], position_ms: positionMs })
+  });
+  setStatus("Cancion continuando");
 }
 
 function updateRoundMeter() {
@@ -611,8 +660,13 @@ elements.loadPlaylist.addEventListener("click", () => loadPlaylist().catch(error
 elements.playRound.addEventListener("click", () => playRound().catch(error => setStatus(error.message)));
 elements.replayRound.addEventListener("click", () => replayRound().catch(error => setStatus(error.message)));
 elements.revealAnswer.addEventListener("click", () => revealAnswer().catch(error => setStatus(error.message)));
+elements.continueSong.addEventListener("click", () => continueSong().catch(error => setStatus(error.message)));
 elements.clearBuzzes.addEventListener("click", () => api("/api/clear-buzzes"));
-elements.resetGame.addEventListener("click", () => confirm("Reiniciar jugadores y puntajes?") && api("/api/reset"));
+elements.resetGame.addEventListener("click", () => {
+  if (!confirm("Reiniciar jugadores y puntajes?")) return;
+  resetPlayedTracks();
+  api("/api/reset");
+});
 elements.copyJoinUrl.addEventListener("click", () => copyJoinUrl().catch(() => setStatus("No se pudo copiar el enlace")));
 elements.roomId?.addEventListener("change", () => {
   localStorage.setItem("room_id", room());
