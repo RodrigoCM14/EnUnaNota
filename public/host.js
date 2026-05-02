@@ -25,6 +25,7 @@ const elements = {
   spotifyStatusText: $("#spotifyStatusText"),
   joinUrl: $("#joinUrl"),
   joinQr: $("#joinQr"),
+  playlistBanner: $("#playlistBanner"),
   answerPanel: $("#answerPanel"),
   cover: $("#cover"),
   roundLabel: $("#roundLabel"),
@@ -57,6 +58,7 @@ let answerVisible = false;
 let eventSource = null;
 let state = null;
 let lastWinnerId = "";
+let songContinuing = false;
 let phoneBaseUrl = "";
 let timerId = null;
 let pausePlaybackTimeoutId = null;
@@ -177,6 +179,7 @@ async function disconnectSpotify() {
   activePlaybackDeviceId = "";
   if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
   pausePlaybackTimeoutId = null;
+  resetContinueButton();
   spotifyPlayer?.disconnect?.();
   spotifyPlayer = null;
   setStatus("Spotify desconectado");
@@ -337,9 +340,16 @@ function pickUnplayedTrack() {
   return track || null;
 }
 
+function resetContinueButton() {
+  songContinuing = false;
+  elements.continueSong.textContent = "Continuar";
+  elements.continueSong.classList.remove("pause-mode");
+}
+
 async function pausePlaybackForBuzz() {
   if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
   pausePlaybackTimeoutId = null;
+  resetContinueButton();
   await spotify("/me/player/pause", { method: "PUT" });
   await markRoundStopped();
   setStatus("Buzz recibido. Musica pausada");
@@ -555,6 +565,7 @@ async function playRound() {
   const clipSeconds = DEFAULT_CLIP_SECONDS;
   const positionMs = 0;
   answerVisible = false;
+  resetContinueButton();
   const startedAt = Date.now() + PLAYBACK_START_DELAY_MS;
   await api("/api/round", {
     clipSeconds,
@@ -602,6 +613,7 @@ async function replayRound() {
   }
   const clipSeconds = Number(state.clipSeconds || DEFAULT_CLIP_SECONDS);
   answerVisible = false;
+  resetContinueButton();
   activePlaybackDeviceId = deviceId;
   const startedAt = Date.now() + PLAYBACK_START_DELAY_MS;
   await api("/api/round", {
@@ -637,6 +649,12 @@ async function revealAnswer() {
 }
 
 async function continueSong() {
+  if (songContinuing) {
+    await spotify("/me/player/pause", { method: "PUT" });
+    resetContinueButton();
+    setStatus("Cancion pausada");
+    return;
+  }
   const round = state?.round;
   if (!round?.track?.uri) {
     setStatus("No hay cancion para continuar");
@@ -658,6 +676,9 @@ async function continueSong() {
     method: "PUT",
     body: JSON.stringify({ uris: [round.track.uri], position_ms: positionMs })
   });
+  songContinuing = true;
+  elements.continueSong.textContent = "Pausar";
+  elements.continueSong.classList.add("pause-mode");
   setStatus("Cancion continuando");
 }
 
@@ -707,6 +728,7 @@ function render() {
   const hasCover = Boolean(showAnswer && round?.track?.image);
   const roundNumber = state.roundNumber ? `Ronda ${state.roundNumber}` : "Ronda --";
   const playlistName = showAnswer && round ? state.playlistName || "Playlist" : "Playlist";
+  elements.playlistBanner.textContent = state.playlistName ? `Playlist: ${state.playlistName}` : "Playlist sin cargar";
   elements.answerPanel?.classList.toggle("answer-hidden", !showAnswer);
   elements.cover.classList.toggle("cover-placeholder", !hasCover);
   elements.cover.src = hasCover ? round.track.image : "";

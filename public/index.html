@@ -12,7 +12,11 @@
       <section class="topbar">
         <div>
           <div class="brand-title">
-            <img src="./logo.png" alt="En Una Nota">
+            <img class="brand-logo" src="./logo.png" alt="En Una Nota">
+            <div class="header-qr">
+              <span>Jugadores</span>
+              <img id="joinQr" alt="QR para unir buzzers" src="">
+            </div>
           </div>
         </div>
         <div class="spotify-bar">
@@ -39,15 +43,11 @@
               <p class="muted">Conecta Spotify para ver tus playlists.</p>
             </div>
           </div>
-          <div class="join-box">
-            <span>Jugadores</span>
-            <strong id="joinUrl" class="visually-hidden">Abre /player</strong>
-            <img id="joinQr" alt="QR para unir buzzers" src="">
-          </div>
-          <button id="resetGame" class="danger">Reiniciar juego</button>
+          <strong id="joinUrl" class="visually-hidden">Abre /player</strong>
         </aside>
 
         <section class="stage">
+          <div class="playlist-banner" id="playlistBanner">Playlist sin cargar</div>
           <div class="now-playing" id="answerPanel">
             <img id="cover" alt="" src="">
             <div class="track-copy">
@@ -78,6 +78,7 @@
           <div class="score-head">
             <h2>Puntajes</h2>
             <div id="scoreboard" class="scoreboard"></div>
+            <button id="resetGame" class="danger">Reiniciar juego</button>
           </div>
         </aside>
       </section>

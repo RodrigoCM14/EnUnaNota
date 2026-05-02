@@ -97,6 +97,7 @@ playerName.addEventListener("keydown", event => {
   if (event.key === "Enter") join();
 });
 buzzButton.addEventListener("click", async () => {
+  navigator.vibrate?.([35, 20, 35]);
   buzzButton.classList.add("buzzed");
   buzzButton.disabled = true;
   buzzState.textContent = "Buzz enviado.";
