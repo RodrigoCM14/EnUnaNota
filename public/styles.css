@@ -147,6 +147,19 @@ h1 {
   line-height: 0.95;
 }
 
+.brand-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-title img {
+  width: clamp(56px, 8vw, 92px);
+  aspect-ratio: 1;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
 h2 {
   margin-bottom: 16px;
 }
@@ -528,8 +541,10 @@ h2 {
 }
 
 #goldenGoal {
-  border-color: rgba(255, 204, 69, 0.75);
-  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 900;
 }
 
 .winner-modal {

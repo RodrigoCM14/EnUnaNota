@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>En Una Nota</title>
+    <link rel="icon" href="./favicon.ico" sizes="any">
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body class="host">
@@ -11,15 +12,17 @@
       <section class="topbar">
         <div>
           <p class="eyebrow">Juego de fiesta con Spotify Premium</p>
-          <h1>En Una Nota</h1>
+          <div class="brand-title">
+            <img src="./logo.png" alt="" aria-hidden="true">
+            <h1>En Una Nota</h1>
+          </div>
         </div>
         <div class="spotify-bar">
           <div class="connection-pill">
-            <div class="status disconnected" id="spotifyStatus" title="Spotify sin conectar" aria-label="Spotify sin conectar">×</div>
+            <div class="status disconnected" id="spotifyStatus" title="Spotify sin conectar" aria-label="Spotify sin conectar">&#10005;</div>
             <span id="spotifyStatusText">Spotify sin conectar</span>
           </div>
           <button id="connectSpotify" class="primary">Conectar Spotify</button>
-          <button id="activateScreenPlayer" type="button">Activar reproductor</button>
           <button id="disconnectSpotify" type="button">Desconectar</button>
         </div>
       </section>
@@ -42,7 +45,6 @@
             <span>Jugadores</span>
             <strong id="joinUrl" class="visually-hidden">Abre /player</strong>
             <img id="joinQr" alt="QR para unir buzzers" src="">
-            <button id="copyJoinUrl" type="button">Copiar enlace</button>
           </div>
           <button id="resetGame" class="danger">Reiniciar juego</button>
         </aside>
@@ -61,10 +63,10 @@
             <div class="meter-track"><span id="roundProgress"></span></div>
           </div>
           <div class="controls">
-            <button id="playRound" class="huge">Reproducir cancion aleatoria</button>
-            <button id="replayRound">Repetir fragmento</button>
-            <button id="revealAnswer">Mostrar respuesta</button>
-            <button id="continueSong">Continuar cancion</button>
+            <button id="playRound" class="huge">Reproducir</button>
+            <button id="replayRound">Repetir</button>
+            <button id="revealAnswer">Mostrar</button>
+            <button id="continueSong">Continuar</button>
             <button id="goldenGoal">Gol de Oro</button>
           </div>
         </section>

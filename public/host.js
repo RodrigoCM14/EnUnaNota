@@ -767,7 +767,7 @@ function connectEvents() {
 }
 
 elements.connectSpotify.addEventListener("click", () => connectSpotify().catch(error => setStatus(error.message || "No se pudo abrir Spotify")));
-elements.activateScreenPlayer.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || "No se pudo activar esta pantalla")));
+elements.activateScreenPlayer?.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || "No se pudo activar esta pantalla")));
 elements.disconnectSpotify.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || "No se pudo desconectar Spotify")));
 elements.loadPlaylist?.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
 elements.refreshPlaylists.addEventListener("click", () => loadUserPlaylists().catch(error => setStatus(error.message)));
@@ -783,7 +783,7 @@ elements.resetGame.addEventListener("click", () => {
   resetPlayedTracks();
   api("/api/reset");
 });
-elements.copyJoinUrl.addEventListener("click", () => copyJoinUrl().catch(() => setStatus("No se pudo copiar el enlace")));
+elements.copyJoinUrl?.addEventListener("click", () => copyJoinUrl().catch(() => setStatus("No se pudo copiar el enlace")));
 elements.roomId?.addEventListener("change", () => {
   localStorage.setItem("room_id", room());
   updateJoinUrl();
