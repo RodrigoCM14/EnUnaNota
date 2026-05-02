@@ -476,6 +476,16 @@ async function handleApi(req, res, pathname, searchParams) {
   if (req.method === "GET" && pathname === "/api/spotify-playlists") {
     const current = getSpotifySession(req);
     if (!current) return sendJson(res, 401, { error: "Spotify no conectado" });
+    const profile = await spotifyApi(current.session, "/me");
+    if (!profile.ok) {
+      return sendJson(res, profile.status, {
+        error: profile.data?.error?.message || "No se pudo leer el usuario conectado",
+        endpoint: "/me",
+        attempts: profile.attempts,
+        spotify: profile.data
+      });
+    }
+    const currentUserId = profile.data?.id || "";
     const playlists = [];
     let url = "/me/playlists?limit=50";
     while (url && playlists.length < 100) {
@@ -490,6 +500,7 @@ async function handleApi(req, res, pathname, searchParams) {
       }
       for (const item of page.data?.items || []) {
         if (!item?.id) continue;
+        if (item.owner?.id !== currentUserId) continue;
         playlists.push({
           id: item.id,
           name: item.name || "Playlist",
