@@ -475,13 +475,14 @@ function playlistIdFromUrl(value) {
   return match?.[1] || "";
 }
 
-async function loadPlaylist() {
-  const id = playlistIdFromUrl(elements.playlistUrl?.value || "");
+async function loadPlaylist(playlistValue = "") {
+  const source = playlistValue || elements.playlistUrl?.value || localStorage.getItem("spotify_playlist_url") || "";
+  const id = playlistIdFromUrl(source);
   if (!id) {
-    setStatus("Pega una URL de playlist valida");
+    setStatus("Elige una playlist valida");
     return;
   }
-  localStorage.setItem("spotify_playlist_url", elements.playlistUrl?.value || `https://open.spotify.com/playlist/${id}`);
+  localStorage.setItem("spotify_playlist_url", `https://open.spotify.com/playlist/${id}`);
   const response = await fetch(`/api/spotify-playlist?id=${encodeURIComponent(id)}`);
   const playlist = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
   if (!response.ok) {
@@ -532,7 +533,7 @@ function renderPlaylistPicker(playlists) {
 async function choosePlaylist(playlistId) {
   if (elements.playlistUrl) elements.playlistUrl.value = `https://open.spotify.com/playlist/${playlistId}`;
   localStorage.setItem("spotify_playlist_url", `https://open.spotify.com/playlist/${playlistId}`);
-  await loadPlaylist();
+  await loadPlaylist(playlistId);
 }
 
 async function playRound() {
