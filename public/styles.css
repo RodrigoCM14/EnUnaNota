@@ -1,15 +1,18 @@
 :root {
   color-scheme: dark;
-  --bg: #101114;
-  --panel: #1b1d22;
-  --panel-2: #252830;
-  --text: #f8f1e7;
-  --muted: #b6b0a6;
-  --line: #363a44;
-  --accent: #ffcc45;
-  --accent-2: #26d07c;
-  --danger: #ff6a5f;
-  --ink: #111114;
+  --bg: #060608;
+  --panel: #171419;
+  --panel-2: #242029;
+  --text: #fff8ec;
+  --muted: #c8b9aa;
+  --line: #423a45;
+  --accent: #ffc42f;
+  --accent-2: #16b8d8;
+  --pink: #ff3f7f;
+  --purple: #9b4bd9;
+  --success: #26d07c;
+  --danger: #ff5f67;
+  --ink: #09090b;
 }
 
 * {
@@ -17,15 +20,54 @@
 }
 
 body {
+  position: relative;
   margin: 0;
   min-height: 100vh;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
-    linear-gradient(rgba(248, 241, 231, 0.026) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(248, 241, 231, 0.022) 1px, transparent 1px),
+    radial-gradient(circle at 18% 12%, rgba(255, 63, 127, 0.08), transparent 26%),
+    radial-gradient(circle at 86% 24%, rgba(22, 184, 216, 0.07), transparent 24%),
+    radial-gradient(circle at 70% 88%, rgba(155, 75, 217, 0.08), transparent 28%),
+    linear-gradient(rgba(255, 248, 236, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 248, 236, 0.025) 1px, transparent 1px),
     var(--bg);
-  background-size: 28px 28px;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px, 28px 28px;
   color: var(--text);
+}
+
+body::before,
+body::after {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+body::before {
+  content: "\266A";
+  color: rgba(255, 196, 47, 0.14);
+  font-size: 34px;
+  line-height: 1;
+  transform: rotate(-12deg);
+  text-shadow:
+    16vw 18vh 0 rgba(255, 63, 127, 0.12),
+    84vw 14vh 0 rgba(155, 75, 217, 0.13),
+    72vw 72vh 0 rgba(22, 184, 216, 0.12),
+    12vw 78vh 0 rgba(255, 196, 47, 0.10);
+}
+
+body::after {
+  content: "\266B";
+  color: rgba(22, 184, 216, 0.10);
+  font-size: 28px;
+  line-height: 1;
+  transform: rotate(10deg);
+  text-shadow:
+    28vw 10vh 0 rgba(255, 196, 47, 0.10),
+    92vw 50vh 0 rgba(255, 63, 127, 0.11),
+    44vw 86vh 0 rgba(155, 75, 217, 0.10),
+    6vw 42vh 0 rgba(22, 184, 216, 0.10);
 }
 
 button,
@@ -80,6 +122,8 @@ label {
 }
 
 .shell {
+  position: relative;
+  z-index: 1;
   width: min(1440px, 100%);
   margin: 0 auto;
   padding: 24px;
@@ -150,12 +194,11 @@ h1 {
 .brand-title {
   display: flex;
   align-items: center;
-  gap: 14px;
 }
 
 .brand-title img {
-  width: clamp(56px, 8vw, 92px);
-  aspect-ratio: 1;
+  width: clamp(120px, 18vw, 220px);
+  max-height: 130px;
   object-fit: contain;
   flex: 0 0 auto;
 }
@@ -187,7 +230,7 @@ h2 {
 .status.connected {
   border-color: rgba(38, 208, 124, 0.65);
   background: rgba(38, 208, 124, 0.12);
-  color: var(--accent-2);
+  color: var(--success);
 }
 
 .status.disconnected {
@@ -490,7 +533,7 @@ h2 {
 .score-action.positive {
   border-color: rgba(38, 208, 124, 0.75);
   background: rgba(38, 208, 124, 0.16);
-  color: var(--accent-2);
+  color: var(--success);
 }
 
 .score-action.negative {
@@ -526,7 +569,7 @@ h2 {
 }
 
 .score-row.winner strong {
-  color: var(--accent-2);
+  color: var(--success);
 }
 
 .golden-goal-banner {
@@ -575,7 +618,7 @@ h2 {
 
 .winner-card p {
   margin: 0;
-  color: var(--accent-2);
+  color: var(--success);
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -591,6 +634,8 @@ h2 {
 }
 
 .phone {
+  position: relative;
+  z-index: 1;
   width: min(100%, 520px);
   min-height: 100vh;
   margin: 0 auto;
@@ -661,7 +706,7 @@ h2 {
 }
 
 .buzzer.buzzed {
-  background: var(--accent-2);
+  background: var(--success);
   border-color: #8dffc3;
   box-shadow: 0 12px 0 #0b7542, 0 20px 30px rgba(0, 0, 0, 0.35);
 }
