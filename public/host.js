@@ -469,19 +469,19 @@ async function findSpotifyDevice() {
 }
 
 function playlistIdFromUrl(value) {
-  const trimmed = value.trim();
+  const trimmed = String(value || "").trim();
   if (/^[a-zA-Z0-9]{20,}$/.test(trimmed)) return trimmed;
   const match = trimmed.match(/playlist\/([a-zA-Z0-9]+)/);
   return match?.[1] || "";
 }
 
 async function loadPlaylist() {
-  const id = playlistIdFromUrl(elements.playlistUrl.value);
+  const id = playlistIdFromUrl(elements.playlistUrl?.value || "");
   if (!id) {
     setStatus("Pega una URL de playlist valida");
     return;
   }
-  localStorage.setItem("spotify_playlist_url", elements.playlistUrl.value);
+  localStorage.setItem("spotify_playlist_url", elements.playlistUrl?.value || `https://open.spotify.com/playlist/${id}`);
   const response = await fetch(`/api/spotify-playlist?id=${encodeURIComponent(id)}`);
   const playlist = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
   if (!response.ok) {
@@ -524,13 +524,14 @@ function renderPlaylistPicker(playlists) {
     const image = playlist.image
       ? `<img src="${playlist.image}" alt="">`
       : `<div class="playlist-cover-placeholder"></div>`;
-    button.innerHTML = `${image}<span>${playlist.name}</span><small>${playlist.tracks} canciones</small>`;
+    button.innerHTML = `${image}<span>${playlist.name}</span>`;
     elements.playlistGrid.append(button);
   }
 }
 
 async function choosePlaylist(playlistId) {
-  elements.playlistUrl.value = `https://open.spotify.com/playlist/${playlistId}`;
+  if (elements.playlistUrl) elements.playlistUrl.value = `https://open.spotify.com/playlist/${playlistId}`;
+  localStorage.setItem("spotify_playlist_url", `https://open.spotify.com/playlist/${playlistId}`);
   await loadPlaylist();
 }
 
@@ -768,7 +769,7 @@ function connectEvents() {
 elements.connectSpotify.addEventListener("click", () => connectSpotify().catch(error => setStatus(error.message || "No se pudo abrir Spotify")));
 elements.activateScreenPlayer.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || "No se pudo activar esta pantalla")));
 elements.disconnectSpotify.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || "No se pudo desconectar Spotify")));
-elements.loadPlaylist.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
+elements.loadPlaylist?.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
 elements.refreshPlaylists.addEventListener("click", () => loadUserPlaylists().catch(error => setStatus(error.message)));
 elements.playRound.addEventListener("click", () => playRound().catch(error => setStatus(error.message)));
 elements.replayRound.addEventListener("click", () => replayRound().catch(error => setStatus(error.message)));
@@ -803,7 +804,7 @@ if (elements.clientId) {
   elements.clientId.value = localStorage.getItem("spotify_client_id") || DEFAULT_SPOTIFY_CLIENT_ID;
   localStorage.setItem("spotify_client_id", elements.clientId.value);
 }
-elements.playlistUrl.value = localStorage.getItem("spotify_playlist_url") || "";
+if (elements.playlistUrl) elements.playlistUrl.value = localStorage.getItem("spotify_playlist_url") || "";
 if (elements.roomId) {
   elements.roomId.value = localStorage.getItem("room_id") || new URLSearchParams(location.search).get("room") || "default";
 }
