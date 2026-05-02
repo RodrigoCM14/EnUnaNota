@@ -45,6 +45,7 @@ function getRoom(id = "default") {
       clipSeconds: 10,
       playlistName: "",
       pointTarget: POINT_TARGET,
+      goldenGoal: false,
       winner: null,
       updatedAt: Date.now()
     });
@@ -62,6 +63,7 @@ function publicRoom(room) {
     clipSeconds: room.clipSeconds,
     playlistName: room.playlistName,
     pointTarget: room.pointTarget,
+    goldenGoal: room.goldenGoal,
     winner: room.winner,
     updatedAt: room.updatedAt
   };
@@ -531,6 +533,11 @@ async function handleApi(req, res, pathname, searchParams) {
     const name = String(body.name || "").trim().slice(0, 24);
     if (!name) return sendJson(res, 400, { error: "Nombre requerido" });
     const id = body.id || crypto.randomUUID();
+    const normalizedName = name.toLocaleLowerCase();
+    const duplicate = Object.values(room.players).find(player =>
+      player.id !== id && player.name.trim().toLocaleLowerCase() === normalizedName
+    );
+    if (duplicate) return sendJson(res, 409, { error: "Ese nombre ya esta en uso" });
     room.players[id] = room.players[id] || { id, name, score: 0, buzzedAt: null };
     room.players[id].name = name;
     touch(room);
@@ -563,8 +570,9 @@ async function handleApi(req, res, pathname, searchParams) {
       room.round.revealed = true;
       room.round.stoppedAt = room.round.stoppedAt || Date.now();
     }
-    if (delta > 0 && !room.winner && player.score >= room.pointTarget) {
+    if (delta > 0 && !room.winner && (room.goldenGoal || player.score >= room.pointTarget)) {
       room.winner = { id: player.id, name: player.name, score: player.score };
+      if (room.goldenGoal) room.goldenGoal = false;
     }
     if (delta > 0) {
       room.buzzes = [];
@@ -581,6 +589,19 @@ async function handleApi(req, res, pathname, searchParams) {
   if (pathname === "/api/clear-buzzes") {
     room.buzzes = [];
     for (const player of Object.values(room.players)) player.buzzedAt = null;
+    touch(room);
+    sendJson(res, 200, { room: publicRoom(room) });
+    return;
+  }
+
+  if (pathname === "/api/golden-goal") {
+    for (const player of Object.values(room.players)) {
+      player.score = 0;
+      player.buzzedAt = null;
+    }
+    room.buzzes = [];
+    room.winner = null;
+    room.goldenGoal = true;
     touch(room);
     sendJson(res, 200, { room: publicRoom(room) });
     return;
@@ -609,6 +630,7 @@ async function handleApi(req, res, pathname, searchParams) {
     room.round = null;
     room.roundNumber = 0;
     room.playlistName = "";
+    room.goldenGoal = false;
     room.winner = null;
     touch(room);
     sendJson(res, 200, { room: publicRoom(room) });
