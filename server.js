@@ -473,6 +473,37 @@ async function handleApi(req, res, pathname, searchParams) {
     return;
   }
 
+  if (req.method === "GET" && pathname === "/api/spotify-playlists") {
+    const current = getSpotifySession(req);
+    if (!current) return sendJson(res, 401, { error: "Spotify no conectado" });
+    const playlists = [];
+    let url = "/me/playlists?limit=50";
+    while (url && playlists.length < 100) {
+      const page = await spotifyApi(current.session, url);
+      if (!page.ok) {
+        return sendJson(res, page.status, {
+          error: page.data?.error?.message || "No se pudieron listar playlists",
+          endpoint: url,
+          attempts: page.attempts,
+          spotify: page.data
+        });
+      }
+      for (const item of page.data?.items || []) {
+        if (!item?.id) continue;
+        playlists.push({
+          id: item.id,
+          name: item.name || "Playlist",
+          owner: item.owner?.display_name || item.owner?.id || "",
+          image: item.images?.[0]?.url || "",
+          tracks: Number(item.tracks?.total || 0)
+        });
+      }
+      url = page.data?.next ? page.data.next.replace("https://api.spotify.com/v1", "") : "";
+    }
+    sendJson(res, 200, { playlists });
+    return;
+  }
+
   if (req.method === "GET" && pathname === "/api/spotify-playlist") {
     const current = getSpotifySession(req);
     if (!current) return sendJson(res, 401, { error: "Spotify no conectado" });
