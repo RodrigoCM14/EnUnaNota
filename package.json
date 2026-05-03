@@ -1,0 +1,12 @@
+{
+  "name": "en-una-nota",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Juego de fiesta con Spotify Premium y buzzers moviles.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
