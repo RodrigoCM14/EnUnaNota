@@ -47,6 +47,7 @@ function getRoom(id = "default") {
       pointTarget: POINT_TARGET,
       goldenGoal: false,
       winner: null,
+      hostCommand: null,
       updatedAt: Date.now()
     });
   }
@@ -65,6 +66,7 @@ function publicRoom(room) {
     pointTarget: room.pointTarget,
     goldenGoal: room.goldenGoal,
     winner: room.winner,
+    hostCommand: room.hostCommand,
     updatedAt: room.updatedAt
   };
 }
@@ -628,6 +630,23 @@ async function handleApi(req, res, pathname, searchParams) {
     return;
   }
 
+  if (pathname === "/api/host-command") {
+    const adminKey = String(body.adminKey || "");
+    const action = String(body.action || "");
+    if (adminKey !== "2312") return sendJson(res, 403, { error: "Clave admin incorrecta" });
+    if (!action) return sendJson(res, 400, { error: "Control invalido" });
+    room.hostCommand = {
+      id: crypto.randomUUID(),
+      action,
+      playerId: body.playerId || "",
+      delta: Number(body.delta || 0),
+      createdAt: Date.now()
+    };
+    touch(room);
+    sendJson(res, 200, { room: publicRoom(room) });
+    return;
+  }
+
   if (pathname === "/api/clear-buzzes") {
     room.buzzes = [];
     for (const player of Object.values(room.players)) player.buzzedAt = null;
@@ -644,6 +663,22 @@ async function handleApi(req, res, pathname, searchParams) {
     room.buzzes = [];
     room.winner = null;
     room.goldenGoal = true;
+    touch(room);
+    sendJson(res, 200, { room: publicRoom(room) });
+    return;
+  }
+
+  if (pathname === "/api/reset-match") {
+    for (const player of Object.values(room.players)) {
+      player.score = 0;
+      player.buzzedAt = null;
+    }
+    room.buzzes = [];
+    room.round = null;
+    room.roundNumber = 0;
+    room.goldenGoal = false;
+    room.winner = null;
+    if (typeof body.playlistName === "string") room.playlistName = body.playlistName.slice(0, 80);
     touch(room);
     sendJson(res, 200, { room: publicRoom(room) });
     return;
