@@ -93,6 +93,7 @@ function render() {
   const buzzed = state.buzzes.some(buzz => buzz.playerId === playerId);
   const first = state.buzzes[0]?.playerId === playerId;
   const roundActive = Boolean(state.round && !state.round.revealed);
+  buzzerScreen.classList.toggle("golden-goal-active", Boolean(state.goldenGoal));
   playerScore.textContent = `${me.score} pts`;
   rank.textContent = `#${myRank}`;
   buzzButton.classList.toggle("buzzed", buzzed);
@@ -120,15 +121,22 @@ function render() {
 function renderAdminControls(players) {
   if (!isAdmin) return;
   adminPlayerControls.innerHTML = "";
-  if (!players.length) {
-    adminPlayerControls.innerHTML = `<p class="muted">Esperando jugadores...</p>`;
+  const playersById = new Map(players.map(player => [player.id, player]));
+  const buzzes = state?.buzzes || [];
+  if (!buzzes.length) {
+    adminPlayerControls.innerHTML = `<p class="muted">Esperando orden de buzzers...</p>`;
     return;
   }
-  for (const player of players) {
+  for (const buzz of buzzes) {
+    const player = playersById.get(buzz.playerId);
+    if (!player) continue;
     const row = document.createElement("div");
     row.className = "admin-player-row";
     row.innerHTML = `<strong>${player.name}</strong><span>${player.score} pts</span><button data-player="${player.id}" data-delta="1">+1</button><button data-player="${player.id}" data-delta="-1">-1</button>`;
     adminPlayerControls.append(row);
+  }
+  if (!adminPlayerControls.children.length) {
+    adminPlayerControls.innerHTML = `<p class="muted">Esperando orden de buzzers...</p>`;
   }
 }
 

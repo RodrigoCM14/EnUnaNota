@@ -66,6 +66,7 @@ let phoneBaseUrl = "";
 let timerId = null;
 let pausePlaybackTimeoutId = null;
 let lastHostCommandId = "";
+let connectAfterRules = false;
 const PLAYBACK_START_DELAY_MS = 1000;
 
 function canonicalHostUrl() {
@@ -97,7 +98,7 @@ function api(path, body) {
 
 function setStatus(text) {
   const disconnected = /sin conectar|desconectado|error|no se pudo|conecta spotify|premium requerido|pendiente/i.test(text);
-  const connected = !disconnected && /conectado|listo|activa|cargad|repetido|mostrada|continuando|gol de oro/i.test(text);
+  const connected = !disconnected && /conectado|listo|activa|cargad|repetido|mostrada|continuando|buzz de oro/i.test(text);
   elements.spotifyStatus.textContent = connected ? "\u2713" : "\u2715";
   elements.spotifyStatus.title = text;
   elements.spotifyStatus.setAttribute("aria-label", text);
@@ -704,7 +705,7 @@ async function scorePlayer(playerId, delta) {
 async function activateGoldenGoal() {
   await api("/api/golden-goal");
   closeWinnerModal();
-  setStatus("Gol de Oro activo");
+  setStatus("Buzz de Oro activo");
 }
 
 function formatBuzzTime(buzz) {
@@ -726,6 +727,15 @@ function closeWinnerModal() {
 
 function closeRulesModal() {
   elements.rulesModal?.classList.add("hidden");
+  if (connectAfterRules) {
+    connectAfterRules = false;
+    connectSpotify().catch(error => setStatus(error.message || "No se pudo abrir Spotify"));
+  }
+}
+
+function showRulesBeforeConnect() {
+  connectAfterRules = true;
+  elements.rulesModal?.classList.remove("hidden");
 }
 
 async function processHostCommand(command) {
@@ -794,7 +804,7 @@ function render() {
   if (state.goldenGoal) {
     const banner = document.createElement("p");
     banner.className = "golden-goal-banner";
-    banner.textContent = "Gol de Oro activo";
+    banner.textContent = "Buzz de Oro activo";
     elements.scoreboard.append(banner);
   }
   for (const player of state.players) {
@@ -830,7 +840,7 @@ function connectEvents() {
   };
 }
 
-elements.connectSpotify.addEventListener("click", () => connectSpotify().catch(error => setStatus(error.message || "No se pudo abrir Spotify")));
+elements.connectSpotify.addEventListener("click", showRulesBeforeConnect);
 elements.activateScreenPlayer?.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || "No se pudo activar esta pantalla")));
 elements.disconnectSpotify.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || "No se pudo desconectar Spotify")));
 elements.loadPlaylist?.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
