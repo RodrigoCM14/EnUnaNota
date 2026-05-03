@@ -38,7 +38,10 @@ const elements = {
   winnerModal: $("#winnerModal"),
   winnerTitle: $("#winnerTitle"),
   winnerScore: $("#winnerScore"),
-  closeWinnerModal: $("#closeWinnerModal")
+  closeWinnerModal: $("#closeWinnerModal"),
+  continueWarning: $("#continueWarning"),
+  rulesModal: $("#rulesModal"),
+  closeRulesModal: $("#closeRulesModal")
 };
 
 localStorage.removeItem("spotify_access_token");
@@ -62,6 +65,7 @@ let songContinuing = false;
 let phoneBaseUrl = "";
 let timerId = null;
 let pausePlaybackTimeoutId = null;
+let lastHostCommandId = "";
 const PLAYBACK_START_DELAY_MS = 1000;
 
 function canonicalHostUrl() {
@@ -344,6 +348,7 @@ function resetContinueButton() {
   songContinuing = false;
   elements.continueSong.textContent = "Continuar";
   elements.continueSong.classList.remove("pause-mode");
+  elements.continueWarning?.classList.add("hidden");
 }
 
 async function pausePlaybackForBuzz() {
@@ -353,6 +358,14 @@ async function pausePlaybackForBuzz() {
   await spotify("/me/player/pause", { method: "PUT" });
   await markRoundStopped();
   setStatus("Buzz recibido. Musica pausada");
+}
+
+async function stopPlaybackNow() {
+  if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
+  pausePlaybackTimeoutId = null;
+  resetContinueButton();
+  await spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
+  await markRoundStopped().catch(() => {});
 }
 
 async function markRoundStopped() {
@@ -503,7 +516,7 @@ async function loadPlaylist(playlistValue = "") {
   }
   playlistTracks = playlist.tracks || [];
   resetPlayedTracks();
-  await api("/api/round", { round: null, playlistName: playlist.name || "Playlist", clipSeconds: DEFAULT_CLIP_SECONDS });
+  await api("/api/reset-match", { playlistName: playlist.name || "Playlist" });
   if (!playlistTracks.length && playlist.summary) {
     setStatus(`0 canciones. Items: ${playlist.summary.items}, tracks: ${playlist.summary.playableTracks}, no tracks: ${playlist.summary.nonTracks}`);
     return;
@@ -679,7 +692,13 @@ async function continueSong() {
   songContinuing = true;
   elements.continueSong.textContent = "Pausar";
   elements.continueSong.classList.add("pause-mode");
+  elements.continueWarning?.classList.remove("hidden");
   setStatus("Cancion continuando");
+}
+
+async function scorePlayer(playerId, delta) {
+  if (delta > 0) await stopPlaybackNow();
+  await api("/api/score", { playerId, delta });
 }
 
 async function activateGoldenGoal() {
@@ -703,6 +722,27 @@ function showWinnerModal(winner) {
 
 function closeWinnerModal() {
   elements.winnerModal?.classList.add("hidden");
+}
+
+function closeRulesModal() {
+  elements.rulesModal?.classList.add("hidden");
+}
+
+async function processHostCommand(command) {
+  if (!command?.id || command.id === lastHostCommandId) return;
+  lastHostCommandId = command.id;
+  const action = command.action;
+  if (action === "play-round") await playRound();
+  if (action === "replay-round") await replayRound();
+  if (action === "reveal-answer") await revealAnswer();
+  if (action === "continue-song") await continueSong();
+  if (action === "golden-goal") await activateGoldenGoal();
+  if (action === "clear-buzzes") await api("/api/clear-buzzes");
+  if (action === "reset-game") {
+    resetPlayedTracks();
+    await api("/api/reset");
+  }
+  if (action === "score") await scorePlayer(command.playerId, command.delta);
 }
 
 function updateRoundMeter() {
@@ -786,6 +826,7 @@ function connectEvents() {
     pauseOnNewBuzz(state, nextState);
     state = nextState;
     render();
+    processHostCommand(nextState.hostCommand).catch(error => setStatus(error.message || "No se pudo ejecutar control host"));
   };
 }
 
@@ -801,6 +842,7 @@ elements.continueSong.addEventListener("click", () => continueSong().catch(error
 elements.goldenGoal.addEventListener("click", () => activateGoldenGoal().catch(error => setStatus(error.message)));
 elements.clearBuzzes.addEventListener("click", () => api("/api/clear-buzzes"));
 elements.closeWinnerModal.addEventListener("click", closeWinnerModal);
+elements.closeRulesModal?.addEventListener("click", closeRulesModal);
 elements.resetGame.addEventListener("click", () => {
   if (!confirm("Reiniciar jugadores y puntajes?")) return;
   resetPlayedTracks();
@@ -815,7 +857,7 @@ elements.roomId?.addEventListener("change", () => {
 elements.buzzList.addEventListener("click", event => {
   const button = event.target.closest("button[data-player]");
   if (!button) return;
-  api("/api/score", { playerId: button.dataset.player, delta: Number(button.dataset.score) });
+  scorePlayer(button.dataset.player, Number(button.dataset.score)).catch(error => setStatus(error.message));
 });
 elements.playlistGrid.addEventListener("click", event => {
   const button = event.target.closest("button[data-playlist-id]");
