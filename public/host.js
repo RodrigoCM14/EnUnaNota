@@ -32,6 +32,7 @@ const elements = {
   roundLabel: $("#roundLabel"),
   trackTitle: $("#trackTitle"),
   trackArtist: $("#trackArtist"),
+  roundMeter: $(".round-meter"),
   roundTimer: $("#roundTimer"),
   roundProgress: $("#roundProgress"),
   buzzList: $("#buzzList"),
@@ -68,6 +69,7 @@ let timerId = null;
 let pausePlaybackTimeoutId = null;
 let lastHostCommandId = "";
 let connectAfterRules = false;
+let continuationEndsAt = 0;
 const PLAYBACK_START_DELAY_MS = 1000;
 const CONTINUE_TOTAL_MS = 30_000;
 
@@ -349,6 +351,7 @@ function pickUnplayedTrack() {
 
 function resetContinueButton() {
   songPlaybackMode = "";
+  continuationEndsAt = 0;
   elements.continueSong.textContent = "Continuar";
   elements.continueSong.classList.remove("pause-mode");
   elements.playFullSong.textContent = "Completa";
@@ -708,12 +711,14 @@ async function playSongFromCurrentRound(mode) {
       setStatus("Ya se reprodujeron 30 segundos de esta cancion");
       return;
     }
+    continuationEndsAt = Date.now() + remainingMs;
     scheduleLimitedContinuationPause(remainingMs);
     elements.continueSong.textContent = "Pausar";
     elements.continueSong.classList.add("pause-mode");
     elements.continueWarning?.classList.remove("hidden");
     setStatus("Cancion continuando hasta 30s");
   } else {
+    continuationEndsAt = 0;
     elements.playFullSong.textContent = "Pausar";
     elements.playFullSong.classList.add("pause-mode");
     elements.continueWarning?.classList.add("hidden");
@@ -817,6 +822,20 @@ async function processHostCommand(command) {
 
 function updateRoundMeter() {
   const round = state?.round;
+  elements.roundMeter?.classList.toggle("hidden", songPlaybackMode === "full");
+  if (songPlaybackMode === "full") {
+    elements.roundTimer.textContent = "";
+    elements.roundProgress.style.width = "0%";
+    return;
+  }
+  if (songPlaybackMode === "continue" && continuationEndsAt) {
+    const remaining = Math.max(0, continuationEndsAt - Date.now());
+    const elapsed = CONTINUE_TOTAL_MS - remaining;
+    const progress = Math.min(100, Math.max(0, (elapsed / CONTINUE_TOTAL_MS) * 100));
+    elements.roundTimer.textContent = `${Math.ceil(remaining / 1000)}s`;
+    elements.roundProgress.style.width = `${progress}%`;
+    return;
+  }
   if (!round || round.revealed) {
     elements.roundTimer.textContent = round?.revealed ? "Respuesta" : "--";
     elements.roundProgress.style.width = "0%";
