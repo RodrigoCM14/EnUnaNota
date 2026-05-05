@@ -498,7 +498,7 @@ h2 {
 
 .controls {
   display: grid;
-  grid-template-columns: 1.35fr repeat(4, minmax(116px, 0.72fr));
+  grid-template-columns: 1.25fr repeat(5, minmax(104px, 0.72fr));
   gap: 8px;
 }
 
@@ -530,7 +530,8 @@ h2 {
   text-align: center;
 }
 
-#continueSong.pause-mode {
+#continueSong.pause-mode,
+#playFullSong.pause-mode {
   border-color: rgba(255, 95, 103, 0.62);
   background: rgba(255, 95, 103, 0.16);
   color: #ffd6d9;

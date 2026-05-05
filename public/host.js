@@ -17,6 +17,7 @@ const elements = {
   replayRound: $("#replayRound"),
   revealAnswer: $("#revealAnswer"),
   continueSong: $("#continueSong"),
+  playFullSong: $("#playFullSong"),
   goldenGoal: $("#goldenGoal"),
   clearBuzzes: $("#clearBuzzes"),
   resetGame: $("#resetGame"),
@@ -61,13 +62,14 @@ let answerVisible = false;
 let eventSource = null;
 let state = null;
 let lastWinnerId = "";
-let songContinuing = false;
+let songPlaybackMode = "";
 let phoneBaseUrl = "";
 let timerId = null;
 let pausePlaybackTimeoutId = null;
 let lastHostCommandId = "";
 let connectAfterRules = false;
 const PLAYBACK_START_DELAY_MS = 1000;
+const CONTINUE_TOTAL_MS = 30_000;
 
 function canonicalHostUrl() {
   const url = new URL(location.href);
@@ -346,9 +348,11 @@ function pickUnplayedTrack() {
 }
 
 function resetContinueButton() {
-  songContinuing = false;
+  songPlaybackMode = "";
   elements.continueSong.textContent = "Continuar";
   elements.continueSong.classList.remove("pause-mode");
+  elements.playFullSong.textContent = "Completa";
+  elements.playFullSong.classList.remove("pause-mode");
   elements.continueWarning?.classList.add("hidden");
 }
 
@@ -662,13 +666,22 @@ async function revealAnswer() {
   }
 }
 
-async function continueSong() {
-  if (songContinuing) {
-    await spotify("/me/player/pause", { method: "PUT" });
-    resetContinueButton();
-    setStatus("Cancion pausada");
-    return;
-  }
+async function pauseExtendedPlayback() {
+  if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
+  pausePlaybackTimeoutId = null;
+  await spotify("/me/player/pause", { method: "PUT" });
+  resetContinueButton();
+  setStatus("Cancion pausada");
+}
+
+function continuationPositionMs(round) {
+  const clipMs = Number(state.clipSeconds || DEFAULT_CLIP_SECONDS) * 1000;
+  const stoppedAt = round.stoppedAt || Date.now();
+  const elapsedMs = Math.min(clipMs, Math.max(0, stoppedAt - round.startedAt));
+  return Math.max(0, Number(round.positionMs || 0) + elapsedMs);
+}
+
+async function playSongFromCurrentRound(mode) {
   const round = state?.round;
   if (!round?.track?.uri) {
     setStatus("No hay cancion para continuar");
@@ -681,20 +694,66 @@ async function continueSong() {
     setStatus("Abre Spotify en algun dispositivo y presiona continuar otra vez.");
     return;
   }
-  const clipMs = Number(state.clipSeconds || DEFAULT_CLIP_SECONDS) * 1000;
-  const stoppedAt = round.stoppedAt || Date.now();
-  const elapsedMs = Math.min(clipMs, Math.max(0, stoppedAt - round.startedAt));
-  const positionMs = Math.max(0, Number(round.positionMs || 0) + elapsedMs);
+  const positionMs = continuationPositionMs(round);
   activePlaybackDeviceId = deviceId;
   await spotify(`/me/player/play?device_id=${deviceId}`, {
     method: "PUT",
     body: JSON.stringify({ uris: [round.track.uri], position_ms: positionMs })
   });
-  songContinuing = true;
-  elements.continueSong.textContent = "Pausar";
-  elements.continueSong.classList.add("pause-mode");
-  elements.continueWarning?.classList.remove("hidden");
-  setStatus("Cancion continuando");
+  songPlaybackMode = mode;
+  if (mode === "continue") {
+    const remainingMs = Math.max(0, CONTINUE_TOTAL_MS - positionMs);
+    if (remainingMs <= 0) {
+      await pauseExtendedPlayback();
+      setStatus("Ya se reprodujeron 30 segundos de esta cancion");
+      return;
+    }
+    scheduleLimitedContinuationPause(remainingMs);
+    elements.continueSong.textContent = "Pausar";
+    elements.continueSong.classList.add("pause-mode");
+    elements.continueWarning?.classList.remove("hidden");
+    setStatus("Cancion continuando hasta 30s");
+  } else {
+    elements.playFullSong.textContent = "Pausar";
+    elements.playFullSong.classList.add("pause-mode");
+    elements.continueWarning?.classList.add("hidden");
+    setStatus("Cancion completa reproduciendo");
+  }
+}
+
+function scheduleLimitedContinuationPause(ms) {
+  if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
+  pausePlaybackTimeoutId = window.setTimeout(async () => {
+    pausePlaybackTimeoutId = null;
+    await spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
+    await markRoundStopped().catch(() => {});
+    resetContinueButton();
+    setStatus("Continuacion pausada a los 30s");
+  }, ms);
+}
+
+async function continueSong() {
+  if (songPlaybackMode === "continue") {
+    await pauseExtendedPlayback();
+    return;
+  }
+  if (songPlaybackMode === "full") {
+    await pauseExtendedPlayback();
+    return;
+  }
+  await playSongFromCurrentRound("continue");
+}
+
+async function playFullSong() {
+  if (songPlaybackMode === "full") {
+    await pauseExtendedPlayback();
+    return;
+  }
+  if (songPlaybackMode === "continue") {
+    await pauseExtendedPlayback();
+    return;
+  }
+  await playSongFromCurrentRound("full");
 }
 
 async function scorePlayer(playerId, delta) {
@@ -746,6 +805,7 @@ async function processHostCommand(command) {
   if (action === "replay-round") await replayRound();
   if (action === "reveal-answer") await revealAnswer();
   if (action === "continue-song") await continueSong();
+  if (action === "play-full-song") await playFullSong();
   if (action === "golden-goal") await activateGoldenGoal();
   if (action === "clear-buzzes") await api("/api/clear-buzzes");
   if (action === "reset-game") {
@@ -849,6 +909,7 @@ elements.playRound.addEventListener("click", () => playRound().catch(error => se
 elements.replayRound.addEventListener("click", () => replayRound().catch(error => setStatus(error.message)));
 elements.revealAnswer.addEventListener("click", () => revealAnswer().catch(error => setStatus(error.message)));
 elements.continueSong.addEventListener("click", () => continueSong().catch(error => setStatus(error.message)));
+elements.playFullSong.addEventListener("click", () => playFullSong().catch(error => setStatus(error.message)));
 elements.goldenGoal.addEventListener("click", () => activateGoldenGoal().catch(error => setStatus(error.message)));
 elements.clearBuzzes.addEventListener("click", () => api("/api/clear-buzzes"));
 elements.closeWinnerModal.addEventListener("click", closeWinnerModal);
