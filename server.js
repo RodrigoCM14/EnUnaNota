@@ -46,7 +46,9 @@ function getRoom(id = "default") {
       playlistName: "",
       pointTarget: POINT_TARGET,
       goldenGoal: false,
+      goldenVote: null,
       winner: null,
+      gameOver: false,
       hostCommand: null,
       updatedAt: Date.now()
     });
@@ -65,7 +67,9 @@ function publicRoom(room) {
     playlistName: room.playlistName,
     pointTarget: room.pointTarget,
     goldenGoal: room.goldenGoal,
+    goldenVote: goldenVoteSummary(room),
     winner: room.winner,
+    gameOver: room.gameOver,
     hostCommand: room.hostCommand,
     updatedAt: room.updatedAt
   };
@@ -82,6 +86,49 @@ function broadcast(roomId) {
 function touch(room) {
   room.updatedAt = Date.now();
   broadcast(room.id);
+}
+
+function clearBuzzes(room) {
+  room.buzzes = [];
+  for (const player of Object.values(room.players)) player.buzzedAt = null;
+}
+
+function resetScores(room) {
+  for (const player of Object.values(room.players)) {
+    player.score = 0;
+    player.buzzedAt = null;
+  }
+}
+
+function goldenVoteRequired(room) {
+  return Math.ceil(Object.keys(room.players).length * 0.51);
+}
+
+function goldenVoteSummary(room) {
+  const vote = room.goldenVote;
+  if (!vote) return null;
+  const votes = vote.votes || {};
+  const yes = Object.values(votes).filter(Boolean).length;
+  const no = Object.values(votes).filter(value => value === false).length;
+  const total = Object.keys(room.players).length;
+  return { ...vote, yes, no, total, required: goldenVoteRequired(room) };
+}
+
+function activateGoldenGoal(room) {
+  resetScores(room);
+  clearBuzzes(room);
+  room.winner = null;
+  room.gameOver = false;
+  room.goldenGoal = true;
+  room.goldenVote = {
+    id: crypto.randomUUID(),
+    active: false,
+    approved: true,
+    rejected: false,
+    votes: {},
+    createdAt: Date.now(),
+    resolvedAt: Date.now()
+  };
 }
 
 function readBody(req) {
@@ -194,7 +241,16 @@ function originFromRequest(req) {
   const origin = forwardedHost
     ? `${forwardedProto || "https"}://${forwardedHost}`
     : `http://${req.headers.host}`;
-  return (PUBLIC_URL || origin).replace(/^http:\/\/(.+\.onrender\.com)$/i, "https://$1");
+  const resolved = (PUBLIC_URL || origin).replace(/^http:\/\/(.+\.onrender\.com)$/i, "https://$1");
+  try {
+    const url = new URL(resolved);
+    if (url.hostname === "127.0.0.1" || url.hostname === "[::1]" || url.hostname === "::1") {
+      url.hostname = "localhost";
+    }
+    return url.origin;
+  } catch {
+    return resolved;
+  }
 }
 
 function parseCookies(req) {
@@ -617,6 +673,8 @@ async function handleApi(req, res, pathname, searchParams) {
     if (delta > 0 && !room.winner && (room.goldenGoal || player.score >= room.pointTarget)) {
       room.winner = { id: player.id, name: player.name, score: player.score };
       if (room.goldenGoal) room.goldenGoal = false;
+      room.goldenVote = null;
+      room.gameOver = true;
     }
     if (delta > 0) {
       room.buzzes = [];
@@ -640,6 +698,7 @@ async function handleApi(req, res, pathname, searchParams) {
       action,
       playerId: body.playerId || "",
       delta: Number(body.delta || 0),
+      target: String(body.target || ""),
       createdAt: Date.now()
     };
     touch(room);
@@ -648,36 +707,64 @@ async function handleApi(req, res, pathname, searchParams) {
   }
 
   if (pathname === "/api/clear-buzzes") {
-    room.buzzes = [];
-    for (const player of Object.values(room.players)) player.buzzedAt = null;
+    clearBuzzes(room);
     touch(room);
     sendJson(res, 200, { room: publicRoom(room) });
     return;
   }
 
   if (pathname === "/api/golden-goal") {
-    for (const player of Object.values(room.players)) {
-      player.score = 0;
-      player.buzzedAt = null;
-    }
-    room.buzzes = [];
-    room.winner = null;
-    room.goldenGoal = true;
+    const hasEligiblePlayer = Object.values(room.players).some(player => player.score >= room.pointTarget - 1);
+    if (!hasEligiblePlayer) return sendJson(res, 409, { error: "Buzz de Oro requiere un jugador con 9 puntos o mas" });
+    if (!Object.keys(room.players).length) return sendJson(res, 409, { error: "No hay jugadores para votar" });
+    if (room.gameOver) return sendJson(res, 409, { error: "La partida ya termino" });
+    if (room.goldenGoal) return sendJson(res, 409, { error: "Buzz de Oro ya esta activo" });
+    if (room.goldenVote?.active) return sendJson(res, 409, { error: "Ya hay una votacion activa" });
+    room.goldenVote = {
+      id: crypto.randomUUID(),
+      active: true,
+      approved: false,
+      rejected: false,
+      votes: {},
+      createdAt: Date.now(),
+      resolvedAt: null
+    };
     touch(room);
     sendJson(res, 200, { room: publicRoom(room) });
     return;
   }
 
-  if (pathname === "/api/reset-match") {
-    for (const player of Object.values(room.players)) {
-      player.score = 0;
-      player.buzzedAt = null;
+  if (pathname === "/api/golden-vote") {
+    const vote = room.goldenVote;
+    const player = room.players[body.playerId];
+    if (!vote?.active) return sendJson(res, 409, { error: "No hay votacion activa" });
+    if (!player) return sendJson(res, 404, { error: "Jugador no encontrado" });
+    vote.votes[player.id] = Boolean(body.accept);
+    const yes = Object.values(vote.votes).filter(Boolean).length;
+    const no = Object.values(vote.votes).filter(value => value === false).length;
+    const total = Object.keys(room.players).length;
+    const required = goldenVoteRequired(room);
+    if (yes >= required) {
+      activateGoldenGoal(room);
+    } else if (no > total - required) {
+      vote.active = false;
+      vote.rejected = true;
+      vote.resolvedAt = Date.now();
     }
-    room.buzzes = [];
+    touch(room);
+    sendJson(res, 200, { room: publicRoom(room) });
+    return;
+  }
+
+  if (pathname === "/api/reset-match" || pathname === "/api/continue-match") {
+    resetScores(room);
+    clearBuzzes(room);
     room.round = null;
     room.roundNumber = 0;
     room.goldenGoal = false;
+    room.goldenVote = null;
     room.winner = null;
+    room.gameOver = false;
     if (typeof body.playlistName === "string") room.playlistName = body.playlistName.slice(0, 80);
     touch(room);
     sendJson(res, 200, { room: publicRoom(room) });
@@ -685,6 +772,8 @@ async function handleApi(req, res, pathname, searchParams) {
   }
 
   if (pathname === "/api/round") {
+    if (room.gameOver && body.round) return sendJson(res, 409, { error: "La partida termino. Continua o elige otra playlist." });
+    if (room.goldenVote?.active && body.round) return sendJson(res, 409, { error: "Hay una votacion de Buzz de Oro activa" });
     if (body.incrementRound && body.round) room.roundNumber += 1;
     room.round = body.round || null;
     const clipSeconds = Number(body.clipSeconds);
@@ -708,7 +797,9 @@ async function handleApi(req, res, pathname, searchParams) {
     room.roundNumber = 0;
     room.playlistName = "";
     room.goldenGoal = false;
+    room.goldenVote = null;
     room.winner = null;
+    room.gameOver = false;
     touch(room);
     sendJson(res, 200, { room: publicRoom(room) });
     return;

@@ -1,3 +1,5 @@
+import { initLanguageControls, t, translatePage, translateServerMessage } from "./i18n.js";
+
 const $ = selector => document.querySelector(selector);
 
 const joinScreen = $("#joinScreen");
@@ -12,8 +14,13 @@ const playerScore = $("#playerScore");
 const rank = $("#rank");
 const roundState = $("#roundState");
 const buzzState = $("#buzzState");
+const goldenVoteBox = $("#goldenVoteBox");
+const goldenVoteText = $("#goldenVoteText");
+const acceptGoldenVote = $("#acceptGoldenVote");
+const rejectGoldenVote = $("#rejectGoldenVote");
 const adminControls = $("#adminControls");
 const adminPlayerControls = $("#adminPlayerControls");
+const adminEndControls = $("#adminEndControls");
 const adminStatus = $("#adminStatus");
 
 let playerId = localStorage.getItem("en_una_nota_player_id") || crypto.randomUUID();
@@ -46,7 +53,7 @@ async function join() {
     return;
   }
   if (typedAdminKey && typedAdminKey !== "2312") {
-    joinError.textContent = "Clave host incorrecta";
+    joinError.textContent = t("player.wrongHostKey");
     adminKey.focus();
     return;
   }
@@ -55,7 +62,7 @@ async function join() {
   localStorage.setItem("en_una_nota_room", room());
   const result = await api("/api/join", { id: playerId, name });
   if (result.error) {
-    joinError.textContent = result.error;
+    joinError.textContent = translateServerMessage(result.error);
     return;
   }
   joinScreen.classList.add("hidden");
@@ -67,13 +74,23 @@ async function join() {
 
 async function hostCommand(action, extra = {}) {
   if (!isAdmin) return;
-  adminStatus.textContent = "Enviando control...";
+  adminStatus.textContent = t("player.sendingControl");
   const result = await api("/api/host-command", { adminKey: "2312", action, ...extra });
   if (result.error) {
-    adminStatus.textContent = result.error;
+    adminStatus.textContent = translateServerMessage(result.error);
     return;
   }
-  adminStatus.textContent = "Control enviado al host.";
+  adminStatus.textContent = t("player.controlSent");
+}
+
+async function voteGoldenGoal(accept) {
+  const result = await api("/api/golden-vote", { playerId, accept });
+  if (result.error) {
+    buzzState.textContent = translateServerMessage(result.error);
+    return;
+  }
+  state = result.room;
+  render();
 }
 
 function connectEvents() {
@@ -92,39 +109,48 @@ function render() {
   const myRank = players.findIndex(player => player.id === playerId) + 1;
   const buzzed = state.buzzes.some(buzz => buzz.playerId === playerId);
   const first = state.buzzes[0]?.playerId === playerId;
-  const roundActive = Boolean(state.round && !state.round.revealed);
+  const roundActive = Boolean(state.round && !state.round.revealed && !state.gameOver && !state.goldenVote?.active);
+  const vote = state.goldenVote;
+  const myVote = vote?.votes?.[playerId];
   buzzerScreen.classList.toggle("golden-goal-active", Boolean(state.goldenGoal));
-  playerScore.textContent = `${me.score} pts`;
+  playerScore.textContent = `${me.score} ${t("common.points")}`;
   rank.textContent = `#${myRank}`;
   buzzButton.classList.toggle("buzzed", buzzed);
   buzzButton.disabled = buzzed || !roundActive;
-  buzzButton.textContent = roundActive ? "BUZZ" : "LISTO";
+  buzzButton.textContent = roundActive ? "BUZZ" : t("player.readyButton");
   roundState.textContent = state.round?.revealed
     ? `${state.round.track.name} - ${state.round.track.artists}`
     : roundActive
-      ? "Ronda en juego"
-      : "Sin ronda activa";
+      ? t("player.activeRound")
+      : t("player.noActiveRound");
   if (first) {
-    buzzState.textContent = "Primero. Te toca responder.";
+    buzzState.textContent = t("player.first");
   } else if (buzzed) {
-    buzzState.textContent = "Buzz recibido. Espera al anfitrion.";
+    buzzState.textContent = t("player.buzzReceivedHost");
   } else if (roundActive) {
-    buzzState.textContent = "Presiona cuando sepas la cancion.";
+    buzzState.textContent = t("player.pressWhenKnow");
   } else if (state.round?.revealed) {
-    buzzState.textContent = "Respuesta revelada. Espera la siguiente ronda.";
+    buzzState.textContent = t("player.answerRevealed");
   } else {
-    buzzState.textContent = "Espera la siguiente ronda.";
+    buzzState.textContent = t("player.waitNext");
+  }
+  goldenVoteBox.classList.toggle("hidden", !vote?.active);
+  if (vote?.active) {
+    goldenVoteText.textContent = `${vote.yes || 0} ${t("common.yes")} / ${vote.no || 0} ${t("common.no")} - ${t("common.requires")} ${vote.required || 0} ${t("common.of")} ${vote.total || 0}`;
+    acceptGoldenVote.classList.toggle("selected", myVote === true);
+    rejectGoldenVote.classList.toggle("selected", myVote === false);
   }
   renderAdminControls(players);
 }
 
 function renderAdminControls(players) {
   if (!isAdmin) return;
+  adminEndControls?.classList.toggle("hidden", !state?.gameOver);
   adminPlayerControls.innerHTML = "";
   const playersById = new Map(players.map(player => [player.id, player]));
   const buzzes = state?.buzzes || [];
   if (!buzzes.length) {
-    adminPlayerControls.innerHTML = `<p class="muted">Esperando orden de buzzers...</p>`;
+    adminPlayerControls.innerHTML = `<p class="muted">${t("player.waitingBuzzOrder")}</p>`;
     return;
   }
   for (const buzz of buzzes) {
@@ -132,13 +158,27 @@ function renderAdminControls(players) {
     if (!player) continue;
     const row = document.createElement("div");
     row.className = "admin-player-row";
-    row.innerHTML = `<strong>${player.name}</strong><span>${player.score} pts</span><button data-player="${player.id}" data-delta="1">+1</button><button data-player="${player.id}" data-delta="-1">-1</button>`;
+    row.innerHTML = `<strong>${player.name}</strong><span>${player.score} ${t("common.points")}</span><button data-player="${player.id}" data-delta="1">+1</button><button data-player="${player.id}" data-delta="-1">-1</button>`;
     adminPlayerControls.append(row);
   }
   if (!adminPlayerControls.children.length) {
-    adminPlayerControls.innerHTML = `<p class="muted">Esperando orden de buzzers...</p>`;
+    adminPlayerControls.innerHTML = `<p class="muted">${t("player.waitingBuzzOrder")}</p>`;
   }
 }
+
+function refreshLanguage() {
+  translatePage();
+  if (!state) {
+    hello.textContent = t("player.ready");
+    roundState.textContent = t("player.noActiveRound");
+    buzzState.textContent = t("player.waitSong");
+  } else {
+    render();
+  }
+}
+
+initLanguageControls(refreshLanguage);
+refreshLanguage();
 
 joinGame.addEventListener("click", join);
 playerName.addEventListener("keydown", event => {
@@ -147,15 +187,17 @@ playerName.addEventListener("keydown", event => {
 adminKey.addEventListener("keydown", event => {
   if (event.key === "Enter") join();
 });
+acceptGoldenVote.addEventListener("click", () => voteGoldenGoal(true));
+rejectGoldenVote.addEventListener("click", () => voteGoldenGoal(false));
 buzzButton.addEventListener("click", async () => {
   navigator.vibrate?.([35, 20, 35]);
   buzzButton.classList.add("buzzed");
   buzzButton.disabled = true;
-  buzzState.textContent = "Buzz enviado.";
+  buzzState.textContent = t("player.buzzSent");
   const result = await api("/api/buzz", { playerId });
   if (result.error) {
     buzzButton.classList.remove("buzzed");
-    buzzState.textContent = result.error;
+    buzzState.textContent = translateServerMessage(result.error);
     render();
   }
 });

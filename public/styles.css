@@ -153,6 +153,41 @@ label {
   gap: 10px;
 }
 
+.language-switcher {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.language-switcher button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.language-switcher button.active {
+  border-color: rgba(255, 196, 47, 0.55);
+  background: rgba(255, 196, 47, 0.14);
+  color: var(--text);
+}
+
+.phone-language {
+  justify-self: center;
+  width: min(100%, 320px);
+}
+
 .spotify-bar button {
   min-height: 42px;
   padding: 0 14px;
@@ -472,6 +507,59 @@ h2 {
   font-weight: 900;
 }
 
+.manual-timer {
+  place-self: center;
+  display: grid;
+  place-items: center;
+  width: min(220px, 52vw);
+  aspect-ratio: 1;
+  border: 8px solid rgba(255, 248, 236, 0.86);
+  border-radius: 999px;
+  background: rgba(255, 196, 47, 0.92);
+  color: var(--ink);
+  font-size: clamp(4rem, 14vw, 8rem);
+  font-weight: 1000;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42);
+}
+
+.manual-timer.hidden {
+  display: none;
+}
+
+.golden-vote-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 196, 47, 0.5);
+  border-radius: 8px;
+  background: rgba(255, 196, 47, 0.1);
+  color: var(--accent);
+  font-weight: 900;
+}
+
+.golden-vote-panel.hidden {
+  display: none;
+}
+
+.golden-vote-panel span {
+  color: var(--text);
+  text-align: right;
+}
+
+.golden-vote-panel.approved {
+  border-color: rgba(38, 208, 124, 0.7);
+  background: rgba(38, 208, 124, 0.12);
+  color: var(--success);
+}
+
+.golden-vote-panel.rejected {
+  border-color: rgba(255, 95, 103, 0.62);
+  background: rgba(255, 95, 103, 0.12);
+  color: var(--danger);
+}
+
 #roundTimer {
   min-width: 0;
   overflow: hidden;
@@ -498,7 +586,7 @@ h2 {
 
 .controls {
   display: grid;
-  grid-template-columns: 1.25fr repeat(5, minmax(104px, 0.72fr));
+  grid-template-columns: 1.25fr repeat(6, minmax(96px, 0.72fr));
   gap: 8px;
 }
 
@@ -708,6 +796,8 @@ h2 {
 }
 
 .winner-card {
+  position: relative;
+  z-index: 1;
   width: min(100%, 420px);
   display: grid;
   gap: 14px;
@@ -734,6 +824,48 @@ h2 {
 .winner-card span {
   color: var(--accent);
   font-weight: 900;
+}
+
+.winner-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.confetti span {
+  position: absolute;
+  top: -24px;
+  width: 10px;
+  height: 18px;
+  border-radius: 3px;
+  background: var(--accent);
+  animation: confetti-fall 2.8s ease-in forwards;
+}
+
+.confetti span:nth-child(3n) {
+  background: var(--pink);
+}
+
+.confetti span:nth-child(4n) {
+  background: var(--accent-2);
+}
+
+.confetti span:nth-child(5n) {
+  background: var(--success);
+}
+
+@keyframes confetti-fall {
+  to {
+    transform: translate(var(--drift), 110vh) rotate(var(--spin));
+  }
 }
 
 .phone {
@@ -902,6 +1034,16 @@ h2 {
   gap: 8px;
 }
 
+.admin-end-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.admin-end-controls.hidden {
+  display: none;
+}
+
 .admin-player-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
@@ -958,6 +1100,39 @@ h2 {
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
 }
 
+.player-vote {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(255, 196, 47, 0.5);
+  border-radius: 8px;
+  background: rgba(255, 196, 47, 0.1);
+}
+
+.player-vote.hidden {
+  display: none;
+}
+
+.player-vote strong {
+  color: var(--accent);
+}
+
+.player-vote p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.player-vote div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.player-vote button.selected {
+  border-color: var(--success);
+  box-shadow: 0 0 0 3px rgba(38, 208, 124, 0.18);
+}
+
 @media (max-width: 1100px) {
   .workspace {
     grid-template-columns: 1fr;
@@ -989,6 +1164,10 @@ h2 {
 
   .spotify-bar button,
   .connection-pill {
+    width: 100%;
+  }
+
+  .language-switcher {
     width: 100%;
   }
 

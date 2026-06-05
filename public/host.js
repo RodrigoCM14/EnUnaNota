@@ -1,3 +1,5 @@
+import { initLanguageControls, t, translatePage, translateServerMessage } from "./i18n.js";
+
 const $ = selector => document.querySelector(selector);
 
 const DEFAULT_SPOTIFY_CLIENT_ID = "8791a946e68c476cac41c3d5023a86a7";
@@ -18,6 +20,7 @@ const elements = {
   revealAnswer: $("#revealAnswer"),
   continueSong: $("#continueSong"),
   playFullSong: $("#playFullSong"),
+  manualTimer: $("#manualTimer"),
   goldenGoal: $("#goldenGoal"),
   clearBuzzes: $("#clearBuzzes"),
   resetGame: $("#resetGame"),
@@ -35,11 +38,16 @@ const elements = {
   roundMeter: $(".round-meter"),
   roundTimer: $("#roundTimer"),
   roundProgress: $("#roundProgress"),
+  manualTimerOverlay: $("#manualTimerOverlay"),
+  goldenVotePanel: $("#goldenVotePanel"),
+  goldenVoteStatus: $("#goldenVoteStatus"),
   buzzList: $("#buzzList"),
   scoreboard: $("#scoreboard"),
   winnerModal: $("#winnerModal"),
   winnerTitle: $("#winnerTitle"),
   winnerScore: $("#winnerScore"),
+  continueMatch: $("#continueMatch"),
+  chooseAnotherPlaylist: $("#chooseAnotherPlaylist"),
   closeWinnerModal: $("#closeWinnerModal"),
   continueWarning: $("#continueWarning"),
   rulesModal: $("#rulesModal"),
@@ -70,12 +78,18 @@ let pausePlaybackTimeoutId = null;
 let lastHostCommandId = "";
 let connectAfterRules = false;
 let continuationEndsAt = 0;
+let finalSongWinnerId = "";
+let manualTimerIntervalId = null;
+let manualTimerTimeoutId = null;
+let lastStatus = { message: "common.spotifyDisconnected", values: {} };
 const PLAYBACK_START_DELAY_MS = 1000;
 const CONTINUE_TOTAL_MS = 30_000;
 
 function canonicalHostUrl() {
   const url = new URL(location.href);
-  if (url.hostname === "localhost") url.hostname = "127.0.0.1";
+  if (url.hostname === "127.0.0.1" || url.hostname === "::1" || url.hostname === "[::1]") {
+    url.hostname = "localhost";
+  }
   if (url.hostname.endsWith(".onrender.com")) url.protocol = "https:";
   return url;
 }
@@ -100,9 +114,15 @@ function api(path, body) {
   });
 }
 
-function setStatus(text) {
-  const disconnected = /sin conectar|desconectado|error|no se pudo|conecta spotify|premium requerido|pendiente/i.test(text);
-  const connected = !disconnected && /conectado|listo|activa|cargad|repetido|mostrada|continuando|buzz de oro/i.test(text);
+function localized(message, values = {}) {
+  return /^[a-z0-9_.-]+$/i.test(String(message)) ? t(message, values) : translateServerMessage(String(message));
+}
+
+function setStatus(message, values = {}) {
+  lastStatus = { message, values };
+  const text = localized(message, values);
+  const disconnected = /sin conectar|not connected|desconectado|disconnected|error|no se pudo|could not|conecta spotify|connect spotify|premium requerido|premium required|pendiente/i.test(text);
+  const connected = !disconnected && /conectado|connected|listo|ready|activa|active|cargad|loaded|repetido|replayed|mostrada|revealed|continuando|continuing|buzz de oro|golden buzz/i.test(text);
   elements.spotifyStatus.textContent = connected ? "\u2713" : "\u2715";
   elements.spotifyStatus.title = text;
   elements.spotifyStatus.setAttribute("aria-label", text);
@@ -134,7 +154,7 @@ async function copyJoinUrl() {
   const text = elements.joinUrl.textContent;
   await navigator.clipboard.writeText(text);
   const previous = elements.copyJoinUrl.textContent;
-  elements.copyJoinUrl.textContent = "Copiado";
+  elements.copyJoinUrl.textContent = t("common.copied");
   window.setTimeout(() => {
     elements.copyJoinUrl.textContent = previous;
   }, 1200);
@@ -158,7 +178,7 @@ async function connectSpotify() {
     location.replace(url.href);
     return;
   }
-  if (location.hostname === "localhost") {
+  if (location.hostname === "127.0.0.1" || location.hostname === "::1" || location.hostname === "[::1]") {
     const url = canonicalHostUrl();
     url.searchParams.set("connect", "spotify");
     location.replace(url.href);
@@ -166,13 +186,13 @@ async function connectSpotify() {
   }
   const clientId = spotifyClientId();
   if (!clientId) {
-    setStatus("Agrega tu Client ID de Spotify");
+    setStatus("host.status.addClientId");
     return;
   }
   localStorage.setItem("spotify_client_id", clientId);
   const url = new URL("/api/spotify-login", location.origin);
   url.searchParams.set("client_id", clientId);
-  setStatus("Abriendo login de Spotify...");
+  setStatus("host.status.openingSpotify");
   location.assign(url.href);
 }
 
@@ -191,7 +211,7 @@ async function disconnectSpotify() {
   resetContinueButton();
   spotifyPlayer?.disconnect?.();
   spotifyPlayer = null;
-  setStatus("Spotify desconectado");
+  setStatus("host.status.spotifyDisconnected");
 }
 
 async function forgetSpotifySessionOnFreshLoad() {
@@ -203,7 +223,7 @@ async function forgetSpotifySessionOnFreshLoad() {
   tokenExpiresAt = 0;
   spotifyDeviceId = "";
   activePlaybackDeviceId = "";
-  setStatus("Spotify sin conectar");
+  setStatus("host.status.spotifyNotConnected");
 }
 
 function saveToken(token) {
@@ -218,7 +238,7 @@ async function spotifyToken(body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
-  const token = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
+  const token = await response.json().catch(() => ({ error: t("host.status.invalidServerResponse") }));
   return { response, token };
 }
 
@@ -227,11 +247,11 @@ async function finishAuth() {
   const spotifyResult = params.get("spotify");
   if (spotifyResult === "connected") {
     history.replaceState({}, "", location.pathname);
-    setStatus("Spotify conectado. Carga una playlist para iniciar el reproductor.");
+    setStatus("host.status.connectedLoadPlaylist");
     return "connected";
   }
   if (spotifyResult === "error") {
-    const message = params.get("message") || "No se pudo conectar Spotify";
+    const message = params.get("message") || t("host.status.cannotConnectSpotify");
     history.replaceState({}, "", location.pathname);
     setStatus(`Spotify: ${message}`);
     return "error";
@@ -250,7 +270,7 @@ async function finishAuth() {
   const storedState = localStorage.getItem("spotify_auth_state") || "";
   const verifier = localStorage.getItem("spotify_code_verifier") || "";
   if (storedState && stateParam && storedState !== stateParam) {
-    setStatus("Spotify devolvio una sesion distinta. Conecta otra vez.");
+    setStatus("host.status.stateMismatch");
     history.replaceState({}, "", location.pathname);
     return "error";
   }
@@ -265,14 +285,14 @@ async function finishAuth() {
   });
   history.replaceState({}, "", location.pathname);
   if (!response.ok || !token.access_token) {
-    const detail = token.error_description || token.error || "No se pudo conectar Spotify";
+    const detail = token.error_description || token.error || t("host.status.cannotConnectSpotify");
     setStatus(`Spotify token ${response.status}: ${detail}`);
     return "error";
   }
   saveToken(token);
   localStorage.removeItem("spotify_code_verifier");
   localStorage.removeItem("spotify_auth_state");
-  setStatus("Spotify conectado");
+  setStatus("host.status.connected");
   return "connected";
 }
 
@@ -284,7 +304,7 @@ async function refreshSpotifyToken() {
   }
   accessToken = session.accessToken;
   tokenExpiresAt = Number(session.expiresAt || Date.now() + 3600 * 1000);
-  setStatus(session.scope ? `Spotify conectado (${session.scope})` : "Spotify conectado");
+  setStatus(session.scope ? `${t("host.status.connected")} (${session.scope})` : "host.status.connected");
   return true;
 }
 
@@ -339,7 +359,7 @@ function pickUnplayedTrack() {
   if (!availableTracks.length) {
     resetPlayedTracks();
     availableTracks = playlistTracks.filter(track => track?.uri);
-    setStatus("Todas las canciones sonaron. Reiniciando lista.");
+    setStatus("host.status.allPlayedReset");
   }
   const track = availableTracks[Math.floor(Math.random() * availableTracks.length)];
   if (track?.uri) {
@@ -352,9 +372,9 @@ function pickUnplayedTrack() {
 function resetContinueButton() {
   songPlaybackMode = "";
   continuationEndsAt = 0;
-  elements.continueSong.textContent = "Continuar";
+  elements.continueSong.textContent = t("host.continue");
   elements.continueSong.classList.remove("pause-mode");
-  elements.playFullSong.textContent = "Completa";
+  elements.playFullSong.textContent = t("host.fullSong");
   elements.playFullSong.classList.remove("pause-mode");
   elements.continueWarning?.classList.add("hidden");
 }
@@ -365,7 +385,7 @@ async function pausePlaybackForBuzz() {
   resetContinueButton();
   await spotify("/me/player/pause", { method: "PUT" });
   await markRoundStopped();
-  setStatus("Buzz recibido. Musica pausada");
+  setStatus("host.status.buzzPaused");
 }
 
 async function stopPlaybackNow() {
@@ -393,7 +413,7 @@ function pauseOnNewBuzz(previousState, nextState) {
 
 async function spotify(path, options = {}) {
   if (!validToken()) await refreshSpotifyToken();
-  if (!validToken()) throw new Error("Conecta Spotify otra vez");
+  if (!validToken()) throw new Error(t("host.status.reconnectSpotify"));
   const response = await fetch(`https://api.spotify.com/v1${path}`, {
     ...options,
     headers: {
@@ -428,7 +448,7 @@ function waitForScreenDevice(timeoutMs = 8000) {
         resolve(spotifyDeviceId);
       } else if (Date.now() - startedAt > timeoutMs) {
         window.clearInterval(intervalId);
-        reject(new Error("Spotify no registro esta pantalla como dispositivo"));
+        reject(new Error(t("host.status.screenDeviceMissing")));
       }
     }, 150);
   });
@@ -436,10 +456,10 @@ function waitForScreenDevice(timeoutMs = 8000) {
 
 async function initPlayer(activate = false) {
   if (spotifyPlayer || !validToken()) return;
-  setStatus("Spotify autorizado, iniciando reproductor...");
+  setStatus("host.status.startingPlayer");
   await Promise.race([
     waitForSpotifySdk(),
-    new Promise((_, reject) => window.setTimeout(() => reject(new Error("No se pudo cargar Spotify Web Playback SDK")), 8000))
+    new Promise((_, reject) => window.setTimeout(() => reject(new Error(t("host.status.sdkFailed"))), 8000))
   ]);
   spotifyPlayer = new Spotify.Player({
     name: "En Una Nota",
@@ -448,26 +468,26 @@ async function initPlayer(activate = false) {
   });
   spotifyPlayer.addListener("ready", ({ device_id }) => {
     spotifyDeviceId = device_id;
-    setStatus("Spotify listo para jugar");
+    setStatus("host.status.readyToPlay");
   });
-  spotifyPlayer.addListener("not_ready", () => setStatus("Spotify desconectado"));
-  spotifyPlayer.addListener("account_error", () => setStatus("Spotify Premium requerido"));
-  spotifyPlayer.addListener("playback_error", error => setStatus(error.message || "Error de reproduccion"));
+  spotifyPlayer.addListener("not_ready", () => setStatus("host.status.spotifyDisconnected"));
+  spotifyPlayer.addListener("account_error", () => setStatus("host.status.premiumRequired"));
+  spotifyPlayer.addListener("playback_error", error => setStatus(error.message || t("host.status.playbackError")));
   if (activate) spotifyPlayer.activateElement?.();
   const connected = await spotifyPlayer.connect();
-  if (!connected) throw new Error("Spotify no pudo conectar el reproductor web");
+  if (!connected) throw new Error(t("host.status.playerFailed"));
   await waitForScreenDevice();
 }
 
 async function activateScreenPlayer() {
   if (!validToken()) await refreshSpotifyToken();
   if (!validToken()) {
-    setStatus("Conecta Spotify primero");
+    setStatus("host.status.connectFirst");
     return;
   }
   await initPlayer(true);
   if (!spotifyPlayer || !spotifyDeviceId) {
-    setStatus("El reproductor de esta pantalla aun no esta listo");
+    setStatus("host.status.screenNotReady");
     return;
   }
   spotifyPlayer.activateElement?.();
@@ -477,7 +497,7 @@ async function activateScreenPlayer() {
   });
   externalDeviceId = "";
   activePlaybackDeviceId = spotifyDeviceId;
-  setStatus("Esta pantalla quedo activa para reproducir");
+  setStatus("host.status.screenActive");
 }
 
 async function findSpotifyDevice() {
@@ -510,34 +530,38 @@ async function loadPlaylist(playlistValue = "") {
   const source = playlistValue || elements.playlistUrl?.value || localStorage.getItem("spotify_playlist_url") || "";
   const id = playlistIdFromUrl(source);
   if (!id) {
-    setStatus("Elige una playlist valida");
+    setStatus("host.status.chooseValidPlaylist");
     return;
   }
   localStorage.setItem("spotify_playlist_url", `https://open.spotify.com/playlist/${id}`);
   const response = await fetch(`/api/spotify-playlist?id=${encodeURIComponent(id)}`);
-  const playlist = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
+  const playlist = await response.json().catch(() => ({ error: t("host.status.invalidServerResponse") }));
   if (!response.ok) {
     const endpoint = playlist.endpoint ? ` (${playlist.endpoint})` : "";
     const attempts = playlist.attempts ? ` Intentos: ${playlist.attempts}.` : "";
-    const owner = playlist.owner?.id ? ` Dueno: ${playlist.owner.id}. Tu usuario: ${playlist.currentUserId || "desconocido"}.` : "";
-    throw new Error(`Spotify playlist ${response.status}: ${playlist.error || "Forbidden"}.${attempts}${owner}${endpoint}`);
+    const owner = playlist.owner?.id ? ` ${t("host.status.owner")}: ${playlist.owner.id}. ${t("host.status.yourUser")}: ${playlist.currentUserId || t("host.status.unknown")}.` : "";
+    throw new Error(`Spotify playlist ${response.status}: ${playlist.error || t("host.status.playlistForbidden")}.${attempts}${owner}${endpoint}`);
   }
   playlistTracks = playlist.tracks || [];
   resetPlayedTracks();
   await api("/api/reset-match", { playlistName: playlist.name || "Playlist" });
   if (!playlistTracks.length && playlist.summary) {
-    setStatus(`0 canciones. Items: ${playlist.summary.items}, tracks: ${playlist.summary.playableTracks}, no tracks: ${playlist.summary.nonTracks}`);
+    setStatus("host.status.zeroSongs", {
+      items: playlist.summary.items,
+      tracks: playlist.summary.playableTracks,
+      nonTracks: playlist.summary.nonTracks
+    });
     return;
   }
-  setStatus(`${playlistTracks.length} canciones cargadas. Reproduce una ronda para iniciar Spotify.`);
+  setStatus("host.status.loadedSongs", { count: playlistTracks.length });
 }
 
 async function loadUserPlaylists() {
-  elements.playlistGrid.innerHTML = `<p class="muted">Cargando playlists...</p>`;
+  elements.playlistGrid.innerHTML = `<p class="muted">${t("host.status.loadingPlaylists")}</p>`;
   const response = await fetch("/api/spotify-playlists");
-  const data = await response.json().catch(() => ({ error: "Respuesta invalida del servidor" }));
+  const data = await response.json().catch(() => ({ error: t("host.status.invalidServerResponse") }));
   if (!response.ok) {
-    throw new Error(`Spotify playlists ${response.status}: ${data.error || "No se pudieron cargar playlists"}`);
+    throw new Error(`Spotify playlists ${response.status}: ${data.error || t("host.status.playlistsFailed")}`);
   }
   renderPlaylistPicker(data.playlists || []);
 }
@@ -545,7 +569,7 @@ async function loadUserPlaylists() {
 function renderPlaylistPicker(playlists) {
   elements.playlistGrid.innerHTML = "";
   if (!playlists.length) {
-    elements.playlistGrid.innerHTML = `<p class="muted">No encontramos playlists en esta cuenta.</p>`;
+    elements.playlistGrid.innerHTML = `<p class="muted">${t("host.status.noPlaylists")}</p>`;
     return;
   }
   for (const playlist of playlists) {
@@ -568,19 +592,27 @@ async function choosePlaylist(playlistId) {
 }
 
 async function playRound() {
+  if (state?.goldenVote?.active) {
+    setStatus("host.status.waitGoldenVote");
+    return;
+  }
+  if (state?.gameOver) {
+    setStatus("host.status.gameOver");
+    return;
+  }
   await initPlayer().catch(error => setStatus(error.message));
   const deviceId = spotifyDeviceId || await findSpotifyDevice();
   if (!deviceId) {
-    setStatus("Abre Spotify en algun dispositivo y presiona reproducir otra vez.");
+    setStatus("host.status.openDevicePlay");
     return;
   }
   if (!playlistTracks.length) {
-    setStatus("Carga una playlist primero");
+    setStatus("host.status.loadPlaylistFirst");
     return;
   }
   const track = pickUnplayedTrack();
   if (!track) {
-    setStatus("No hay canciones disponibles");
+    setStatus("host.status.noSongs");
     return;
   }
   const clipSeconds = DEFAULT_CLIP_SECONDS;
@@ -622,14 +654,18 @@ async function playRound() {
 }
 
 async function replayRound() {
+  if (state?.goldenVote?.active) {
+    setStatus("host.status.waitGoldenVote");
+    return;
+  }
   const round = state?.round;
   if (!round?.track?.uri) {
-    setStatus("No hay fragmento para repetir");
+    setStatus("host.status.noFragment");
     return;
   }
   const deviceId = activePlaybackDeviceId || spotifyDeviceId || await findSpotifyDevice();
   if (!deviceId) {
-    setStatus("Abre Spotify en algun dispositivo y presiona reproducir otra vez.");
+    setStatus("host.status.openDevicePlay");
     return;
   }
   const clipSeconds = Number(state.clipSeconds || DEFAULT_CLIP_SECONDS);
@@ -656,16 +692,23 @@ async function replayRound() {
     round: { ...state.round, startedAt: Date.now(), stoppedAt: null }
   });
   schedulePlaybackPause(clipSeconds);
-  setStatus("Fragmento repetido");
+  setStatus("host.status.fragmentRepeated");
 }
 
 async function revealAnswer() {
   answerVisible = true;
-  render();
   if (state?.round) {
-    setStatus("Respuesta mostrada");
+    await stopPlaybackNow();
+    await api("/api/round", {
+      round: { ...state.round, revealed: true, stoppedAt: state.round.stoppedAt || Date.now() },
+      clipSeconds: Number(state.clipSeconds || DEFAULT_CLIP_SECONDS),
+      playlistName: state.playlistName || "",
+      clearBuzzes: true
+    });
+    setStatus("host.status.answerShown");
   } else {
-    setStatus("No hay respuesta para mostrar");
+    render();
+    setStatus("host.status.noAnswer");
   }
 }
 
@@ -674,7 +717,7 @@ async function pauseExtendedPlayback() {
   pausePlaybackTimeoutId = null;
   await spotify("/me/player/pause", { method: "PUT" });
   resetContinueButton();
-  setStatus("Cancion pausada");
+  setStatus("host.status.songPaused");
 }
 
 function continuationPositionMs(round) {
@@ -687,14 +730,14 @@ function continuationPositionMs(round) {
 async function playSongFromCurrentRound(mode) {
   const round = state?.round;
   if (!round?.track?.uri) {
-    setStatus("No hay cancion para continuar");
+    setStatus("host.status.noSongContinue");
     return;
   }
   if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
   pausePlaybackTimeoutId = null;
   const deviceId = activePlaybackDeviceId || spotifyDeviceId || await findSpotifyDevice();
   if (!deviceId) {
-    setStatus("Abre Spotify en algun dispositivo y presiona continuar otra vez.");
+    setStatus("host.status.openDeviceContinue");
     return;
   }
   const positionMs = continuationPositionMs(round);
@@ -708,21 +751,21 @@ async function playSongFromCurrentRound(mode) {
     const remainingMs = Math.max(0, CONTINUE_TOTAL_MS - positionMs);
     if (remainingMs <= 0) {
       await pauseExtendedPlayback();
-      setStatus("Ya se reprodujeron 30 segundos de esta cancion");
+      setStatus("host.status.alreadyPlayed30");
       return;
     }
     continuationEndsAt = Date.now() + remainingMs;
     scheduleLimitedContinuationPause(remainingMs);
-    elements.continueSong.textContent = "Pausar";
+    elements.continueSong.textContent = t("host.pause");
     elements.continueSong.classList.add("pause-mode");
     elements.continueWarning?.classList.remove("hidden");
-    setStatus("Cancion continuando hasta 30s");
+    setStatus("host.status.continuing30");
   } else {
     continuationEndsAt = 0;
-    elements.playFullSong.textContent = "Pausar";
+    elements.playFullSong.textContent = t("host.pause");
     elements.playFullSong.classList.add("pause-mode");
     elements.continueWarning?.classList.add("hidden");
-    setStatus("Cancion completa reproduciendo");
+    setStatus("host.status.fullPlaying");
   }
 }
 
@@ -733,7 +776,7 @@ function scheduleLimitedContinuationPause(ms) {
     await spotify("/me/player/pause", { method: "PUT" }).catch(() => {});
     await markRoundStopped().catch(() => {});
     resetContinueButton();
-    setStatus("Continuacion pausada a los 30s");
+    setStatus("host.status.continuationPaused30");
   }, ms);
 }
 
@@ -769,7 +812,44 @@ async function scorePlayer(playerId, delta) {
 async function activateGoldenGoal() {
   await api("/api/golden-goal");
   closeWinnerModal();
-  setStatus("Buzz de Oro activo");
+  setStatus("host.status.voteStarted");
+}
+
+async function continueMatch() {
+  await api("/api/continue-match", { playlistName: state?.playlistName || "" });
+  answerVisible = false;
+  finalSongWinnerId = "";
+  closeWinnerModal();
+  resetContinueButton();
+  setStatus("host.status.matchReady");
+}
+
+function chooseAnotherPlaylist() {
+  closeWinnerModal();
+  document.querySelector(".setup-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  elements.refreshPlaylists?.focus();
+  setStatus("host.status.choosePlaylistRestart");
+}
+
+function stopManualTimer() {
+  if (manualTimerIntervalId) window.clearInterval(manualTimerIntervalId);
+  if (manualTimerTimeoutId) window.clearTimeout(manualTimerTimeoutId);
+  manualTimerIntervalId = null;
+  manualTimerTimeoutId = null;
+  elements.manualTimerOverlay?.classList.add("hidden");
+}
+
+function startManualTimer(seconds = 10) {
+  stopManualTimer();
+  let remaining = seconds;
+  elements.manualTimerOverlay.textContent = String(remaining);
+  elements.manualTimerOverlay.classList.remove("hidden");
+  manualTimerIntervalId = window.setInterval(() => {
+    remaining -= 1;
+    elements.manualTimerOverlay.textContent = String(Math.max(0, remaining));
+    if (remaining <= 0) stopManualTimer();
+  }, 1000);
+  manualTimerTimeoutId = window.setTimeout(stopManualTimer, (seconds + 1) * 1000);
 }
 
 function formatBuzzTime(buzz) {
@@ -780,8 +860,9 @@ function formatBuzzTime(buzz) {
 
 function showWinnerModal(winner) {
   if (!winner || !elements.winnerModal) return;
-  elements.winnerTitle.textContent = winner.name || "Jugador";
-  elements.winnerScore.textContent = `${winner.score || 0} pts`;
+  elements.winnerTitle.textContent = winner.name || t("common.player");
+  elements.winnerScore.textContent = `${winner.score || 0} ${t("common.points")}`;
+  renderConfetti();
   elements.winnerModal.classList.remove("hidden");
 }
 
@@ -789,11 +870,27 @@ function closeWinnerModal() {
   elements.winnerModal?.classList.add("hidden");
 }
 
+function renderConfetti() {
+  const old = elements.winnerModal?.querySelector(".confetti");
+  old?.remove();
+  const confetti = document.createElement("div");
+  confetti.className = "confetti";
+  for (let index = 0; index < 42; index += 1) {
+    const piece = document.createElement("span");
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.animationDelay = `${Math.random() * 0.9}s`;
+    piece.style.setProperty("--drift", `${Math.random() * 80 - 40}px`);
+    piece.style.setProperty("--spin", `${Math.random() * 540 + 180}deg`);
+    confetti.append(piece);
+  }
+  elements.winnerModal?.append(confetti);
+}
+
 function closeRulesModal() {
   elements.rulesModal?.classList.add("hidden");
   if (connectAfterRules) {
     connectAfterRules = false;
-    connectSpotify().catch(error => setStatus(error.message || "No se pudo abrir Spotify"));
+    connectSpotify().catch(error => setStatus(error.message || t("host.status.cannotOpenSpotify")));
   }
 }
 
@@ -811,13 +908,69 @@ async function processHostCommand(command) {
   if (action === "reveal-answer") await revealAnswer();
   if (action === "continue-song") await continueSong();
   if (action === "play-full-song") await playFullSong();
+  if (action === "timer-10") startManualTimer(10);
   if (action === "golden-goal") await activateGoldenGoal();
   if (action === "clear-buzzes") await api("/api/clear-buzzes");
+  if (action === "continue-match") await continueMatch();
+  if (action === "choose-playlist") chooseAnotherPlaylist();
   if (action === "reset-game") {
     resetPlayedTracks();
     await api("/api/reset");
   }
   if (action === "score") await scorePlayer(command.playerId, command.delta);
+}
+
+function renderGoldenVote() {
+  const vote = state?.goldenVote;
+  if (!elements.goldenVotePanel || !elements.goldenVoteStatus) return;
+  const showVote = Boolean(vote) || state?.goldenGoal;
+  elements.goldenVotePanel.classList.toggle("hidden", !showVote);
+  elements.goldenVotePanel.classList.toggle("approved", Boolean(state?.goldenGoal || vote?.approved));
+  elements.goldenVotePanel.classList.toggle("rejected", Boolean(vote?.rejected));
+  if (!showVote) return;
+  if (state.goldenGoal) {
+    elements.goldenVotePanel.querySelector("strong").textContent = "Buzz de Oro activo";
+    elements.goldenVoteStatus.textContent = "El proximo acierto gana";
+    return;
+  }
+  if (vote.rejected) {
+    elements.goldenVotePanel.querySelector("strong").textContent = "Buzz de Oro rechazado";
+    elements.goldenVoteStatus.textContent = `${vote.yes || 0} si / ${vote.no || 0} no`;
+    return;
+  }
+  elements.goldenVotePanel.querySelector("strong").textContent = "Buzz de Oro propuesto";
+  elements.goldenVoteStatus.textContent = `${vote.yes || 0} si / ${vote.no || 0} no · requiere ${vote.required || 0} de ${vote.total || 0}`;
+}
+
+function renderLocalizedGoldenVote() {
+  const vote = state?.goldenVote;
+  if (!elements.goldenVotePanel || !elements.goldenVoteStatus) return;
+  const showVote = Boolean(vote) || state?.goldenGoal;
+  elements.goldenVotePanel.classList.toggle("hidden", !showVote);
+  elements.goldenVotePanel.classList.toggle("approved", Boolean(state?.goldenGoal || vote?.approved));
+  elements.goldenVotePanel.classList.toggle("rejected", Boolean(vote?.rejected));
+  if (!showVote) return;
+  if (state.goldenGoal) {
+    elements.goldenVotePanel.querySelector("strong").textContent = t("host.status.goldenActive");
+    elements.goldenVoteStatus.textContent = t("host.status.nextCorrectWins");
+    return;
+  }
+  if (vote.rejected) {
+    elements.goldenVotePanel.querySelector("strong").textContent = t("host.status.goldenRejected");
+    elements.goldenVoteStatus.textContent = `${vote.yes || 0} ${t("common.yes")} / ${vote.no || 0} ${t("common.no")}`;
+    return;
+  }
+  elements.goldenVotePanel.querySelector("strong").textContent = t("host.goldenVoteProposed");
+  elements.goldenVoteStatus.textContent = `${vote.yes || 0} ${t("common.yes")} / ${vote.no || 0} ${t("common.no")} - ${t("common.requires")} ${vote.required || 0} ${t("common.of")} ${vote.total || 0}`;
+}
+
+function playFinalSongIfNeeded() {
+  const winner = state?.winner;
+  if (!winner?.id || finalSongWinnerId === winner.id) return;
+  finalSongWinnerId = winner.id;
+  if (state?.round?.track?.uri) {
+    playSongFromCurrentRound("full").catch(error => setStatus(error.message || t("host.status.finalSongFailed")));
+  }
 }
 
 function updateRoundMeter() {
@@ -837,7 +990,7 @@ function updateRoundMeter() {
     return;
   }
   if (!round || round.revealed) {
-    elements.roundTimer.textContent = round?.revealed ? "Respuesta" : "--";
+    elements.roundTimer.textContent = round?.revealed ? t("host.status.answer") : "--";
     elements.roundProgress.style.width = "0%";
     return;
   }
@@ -855,16 +1008,17 @@ function render() {
   const round = state.round;
   const showAnswer = answerVisible || round?.revealed;
   const hasCover = Boolean(showAnswer && round?.track?.image);
-  const roundNumber = state.roundNumber ? `Ronda ${state.roundNumber}` : "Ronda --";
-  const playlistName = showAnswer && round ? state.playlistName || "Playlist" : "Playlist";
-  elements.playlistBanner.textContent = state.playlistName ? `Playlist: ${state.playlistName}` : "Playlist sin cargar";
+  const roundNumber = state.roundNumber ? `${t("host.status.round")} ${state.roundNumber}` : t("host.status.roundEmpty");
+  const playlistName = showAnswer && round ? state.playlistName || t("common.playlist") : t("common.playlist");
+  elements.playlistBanner.textContent = state.playlistName ? `${t("common.playlist")}: ${state.playlistName}` : t("common.playlistUnloaded");
   elements.answerPanel?.classList.toggle("answer-hidden", !showAnswer);
   elements.cover.classList.toggle("cover-placeholder", !hasCover);
   elements.cover.src = hasCover ? round.track.image : "";
   elements.roundLabel.textContent = `${roundNumber} \u00b7 ${playlistName}`;
-  elements.trackTitle.textContent = showAnswer && round ? round.track.name : "Cancion";
-  elements.trackArtist.textContent = showAnswer && round ? round.track.artists : "Artista";
+  elements.trackTitle.textContent = showAnswer && round ? round.track.name : t("common.song");
+  elements.trackArtist.textContent = showAnswer && round ? round.track.artists : t("common.artist");
   updateRoundMeter();
+  renderLocalizedGoldenVote();
 
   elements.buzzList.innerHTML = "";
   state.buzzes.forEach((buzz, index) => {
@@ -875,7 +1029,7 @@ function render() {
   });
   if (!state.buzzes.length) {
     const li = document.createElement("li");
-    li.textContent = "Esperando buzzers.";
+    li.textContent = t("host.status.waitingBuzzers");
     elements.buzzList.append(li);
   }
 
@@ -883,7 +1037,7 @@ function render() {
   if (state.goldenGoal) {
     const banner = document.createElement("p");
     banner.className = "golden-goal-banner";
-    banner.textContent = "Buzz de Oro activo";
+    banner.textContent = t("host.status.goldenActive");
     elements.scoreboard.append(banner);
   }
   for (const player of state.players) {
@@ -891,19 +1045,21 @@ function render() {
     const isWinner = state.winner?.id === player.id;
     row.className = "score-row";
     row.classList.toggle("winner", isWinner);
-    const suffix = isWinner ? " - Ganador" : "";
+    const suffix = isWinner ? t("host.status.winnerSuffix") : "";
     row.innerHTML = `<strong>${player.name}${isWinner ? " · Ganador" : ""}</strong><span class="score">${player.score}</span><span>/${state.pointTarget || 10}</span>`;
     row.innerHTML = `<strong>${player.name}${suffix}</strong><span class="score">${player.score}</span><span>/${state.pointTarget || 10}</span>`;
     elements.scoreboard.append(row);
   }
   if (!state.players.length) {
-    elements.scoreboard.innerHTML = `<p class="muted">Esperando jugadores...</p>`;
+    elements.scoreboard.innerHTML = `<p class="muted">${t("host.status.waitingPlayers")}</p>`;
   }
   if (state.winner?.id && state.winner.id !== lastWinnerId) {
     lastWinnerId = state.winner.id;
     showWinnerModal(state.winner);
+    playFinalSongIfNeeded();
   } else if (!state.winner) {
     lastWinnerId = "";
+    finalSongWinnerId = "";
   }
 }
 
@@ -915,13 +1071,32 @@ function connectEvents() {
     pauseOnNewBuzz(state, nextState);
     state = nextState;
     render();
-    processHostCommand(nextState.hostCommand).catch(error => setStatus(error.message || "No se pudo ejecutar control host"));
+    processHostCommand(nextState.hostCommand).catch(error => setStatus(error.message || t("host.status.hostCommandFailed")));
   };
 }
 
+function refreshLanguage() {
+  translatePage();
+  if (songPlaybackMode === "continue") {
+    elements.continueSong.textContent = t("host.pause");
+    elements.playFullSong.textContent = t("host.fullSong");
+  } else if (songPlaybackMode === "full") {
+    elements.continueSong.textContent = t("host.continue");
+    elements.playFullSong.textContent = t("host.pause");
+  } else {
+    elements.continueSong.textContent = t("host.continue");
+    elements.playFullSong.textContent = t("host.fullSong");
+  }
+  if (state) render();
+  if (lastStatus) setStatus(lastStatus.message, lastStatus.values);
+}
+
+initLanguageControls(refreshLanguage);
+refreshLanguage();
+
 elements.connectSpotify.addEventListener("click", showRulesBeforeConnect);
-elements.activateScreenPlayer?.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || "No se pudo activar esta pantalla")));
-elements.disconnectSpotify.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || "No se pudo desconectar Spotify")));
+elements.activateScreenPlayer?.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || t("host.status.activateScreenFailed"))));
+elements.disconnectSpotify.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || t("host.status.disconnectFailed"))));
 elements.loadPlaylist?.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
 elements.refreshPlaylists.addEventListener("click", () => loadUserPlaylists().catch(error => setStatus(error.message)));
 elements.playRound.addEventListener("click", () => playRound().catch(error => setStatus(error.message)));
@@ -929,16 +1104,19 @@ elements.replayRound.addEventListener("click", () => replayRound().catch(error =
 elements.revealAnswer.addEventListener("click", () => revealAnswer().catch(error => setStatus(error.message)));
 elements.continueSong.addEventListener("click", () => continueSong().catch(error => setStatus(error.message)));
 elements.playFullSong.addEventListener("click", () => playFullSong().catch(error => setStatus(error.message)));
+elements.manualTimer?.addEventListener("click", () => startManualTimer(10));
 elements.goldenGoal.addEventListener("click", () => activateGoldenGoal().catch(error => setStatus(error.message)));
 elements.clearBuzzes.addEventListener("click", () => api("/api/clear-buzzes"));
+elements.continueMatch?.addEventListener("click", () => continueMatch().catch(error => setStatus(error.message)));
+elements.chooseAnotherPlaylist?.addEventListener("click", chooseAnotherPlaylist);
 elements.closeWinnerModal.addEventListener("click", closeWinnerModal);
 elements.closeRulesModal?.addEventListener("click", closeRulesModal);
 elements.resetGame.addEventListener("click", () => {
-  if (!confirm("Reiniciar jugadores y puntajes?")) return;
+  if (!confirm(t("host.status.restartConfirm"))) return;
   resetPlayedTracks();
   api("/api/reset");
 });
-elements.copyJoinUrl?.addEventListener("click", () => copyJoinUrl().catch(() => setStatus("No se pudo copiar el enlace")));
+elements.copyJoinUrl?.addEventListener("click", () => copyJoinUrl().catch(() => setStatus("host.status.copyFailed")));
 elements.roomId?.addEventListener("change", () => {
   localStorage.setItem("room_id", room());
   updateJoinUrl();
@@ -968,11 +1146,11 @@ forgetSpotifySessionOnFreshLoad()
   .then(async authResult => {
     const params = new URLSearchParams(location.search);
     const serverSession = authResult === "connected" ? await refreshSpotifyToken() : false;
-    if (!serverSession && validToken()) setStatus("Spotify conectado");
+    if (!serverSession && validToken()) setStatus("host.status.connected");
     if (validToken()) {
       sessionStorage.removeItem("spotify_auto_connect_attempted");
       loadUserPlaylists().catch(error => setStatus(error.message));
-      activateScreenPlayer().catch(() => setStatus("Spotify conectado. Reactiva el reproductor si no suena en pantalla"));
+      activateScreenPlayer().catch(() => setStatus("host.status.reactivatePlayer"));
     } else if (params.get("connect") === "spotify" && !params.has("code") && !params.has("error") && !sessionStorage.getItem("spotify_auto_connect_attempted")) {
       sessionStorage.setItem("spotify_auto_connect_attempted", "1");
       history.replaceState({}, "", location.pathname);

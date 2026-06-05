@@ -14,97 +14,114 @@
           <div class="brand-title">
             <img class="brand-logo" src="./logo.png" alt="En Una Nota">
             <div class="header-qr">
-              <span>Jugadores</span>
-              <img id="joinQr" alt="QR para unir buzzers" src="">
+              <span data-i18n="common.players">Jugadores</span>
+              <img id="joinQr" alt="QR para unir buzzers" data-i18n-alt="common.joinQrAlt" src="">
             </div>
           </div>
         </div>
         <div class="spotify-bar">
-          <div class="connection-pill">
-            <div class="status disconnected" id="spotifyStatus" title="Spotify sin conectar" aria-label="Spotify sin conectar">&#10005;</div>
-            <span id="spotifyStatusText">Spotify sin conectar</span>
+          <div class="language-switcher" data-i18n-aria-label="common.language" aria-label="Idioma">
+            <button type="button" data-lang-choice="es"><span aria-hidden="true">🇪🇸</span><span data-i18n="common.spanish">Español</span></button>
+            <button type="button" data-lang-choice="en"><span aria-hidden="true">🇺🇸</span><span data-i18n="common.english">English</span></button>
           </div>
-          <button id="connectSpotify" class="primary">Conectar Spotify</button>
-          <button id="disconnectSpotify" type="button">Desconectar</button>
+          <div class="connection-pill">
+            <div class="status disconnected" id="spotifyStatus" title="Spotify sin conectar" aria-label="Spotify sin conectar" data-i18n-title="common.spotifyDisconnected" data-i18n-aria-label="common.spotifyDisconnected">&#10005;</div>
+            <span id="spotifyStatusText" data-i18n="common.spotifyDisconnected">Spotify sin conectar</span>
+          </div>
+          <button id="connectSpotify" class="primary" data-i18n="host.connectSpotify">Conectar Spotify</button>
+          <button id="disconnectSpotify" type="button" data-i18n="host.disconnectSpotify">Desconectar</button>
         </div>
       </section>
 
       <section class="workspace">
         <aside class="panel setup-panel">
-          <h2>Playlist</h2>
+          <h2 data-i18n="common.playlist">Playlist</h2>
           <input id="clientId" type="hidden">
           <input id="roomId" type="hidden" value="default">
           <div class="playlist-picker">
             <div class="picker-head">
-              <span>Tus playlists</span>
-              <button id="refreshPlaylists" type="button">Actualizar</button>
+              <span data-i18n="host.yourPlaylists">Tus playlists</span>
+              <button id="refreshPlaylists" type="button" data-i18n="host.refresh">Actualizar</button>
             </div>
             <div id="playlistGrid" class="playlist-grid">
-              <p class="muted">Conecta Spotify para ver tus playlists.</p>
+              <p class="muted" data-i18n="host.connectToSeePlaylists">Conecta Spotify para ver tus playlists.</p>
             </div>
           </div>
-          <strong id="joinUrl" class="visually-hidden">Abre /player</strong>
+          <strong id="joinUrl" class="visually-hidden" data-i18n="host.openPlayer">Abre /player</strong>
         </aside>
 
         <section class="stage">
-          <div class="playlist-banner" id="playlistBanner">Playlist sin cargar</div>
+          <div class="playlist-banner" id="playlistBanner" data-i18n="common.playlistUnloaded">Playlist sin cargar</div>
           <div class="now-playing" id="answerPanel">
             <img id="cover" alt="" src="">
             <div class="track-copy">
-              <p id="roundLabel">Playlist</p>
-              <h2 id="trackTitle">Cancion</h2>
-              <p id="trackArtist">Artista</p>
+              <p id="roundLabel" data-i18n="common.playlist">Playlist</p>
+              <h2 id="trackTitle" data-i18n="common.song">Cancion</h2>
+              <p id="trackArtist" data-i18n="common.artist">Artista</p>
             </div>
           </div>
           <div class="round-meter">
             <span id="roundTimer">--</span>
             <div class="meter-track"><span id="roundProgress"></span></div>
           </div>
-          <div class="controls">
-            <button id="playRound" class="huge">Reproducir</button>
-            <button id="replayRound">Repetir</button>
-            <button id="revealAnswer">Mostrar</button>
-            <button id="continueSong">Continuar</button>
-            <button id="playFullSong">Completa</button>
-            <button id="goldenGoal">Buzz de Oro</button>
+          <div id="manualTimerOverlay" class="manual-timer hidden" aria-live="polite">10</div>
+          <div id="goldenVotePanel" class="golden-vote-panel hidden">
+            <strong data-i18n="host.goldenVoteProposed">Buzz de Oro propuesto</strong>
+            <span id="goldenVoteStatus">0/0</span>
           </div>
-          <p id="continueWarning" class="continue-warning hidden">Al continuar la canción, solo vale decir el nombre: no tararear, cantar ni hacer melodías.</p>
+          <div class="controls">
+            <button id="playRound" class="huge" data-i18n="host.play">Reproducir</button>
+            <button id="replayRound" data-i18n="host.replay">Repetir</button>
+            <button id="revealAnswer" data-i18n="host.reveal">Mostrar</button>
+            <button id="continueSong" data-i18n="host.continue">Continuar</button>
+            <button id="playFullSong" data-i18n="host.fullSong">Completa</button>
+            <button id="manualTimer" data-i18n="host.timer10">Timer 10s</button>
+            <button id="goldenGoal" data-i18n="host.goldenGoal">Buzz de Oro</button>
+          </div>
+          <p id="continueWarning" class="continue-warning hidden" data-i18n="host.continueWarning">Al continuar la cancion, solo vale decir el nombre: no tararear, cantar ni hacer melodias.</p>
         </section>
 
         <aside class="panel score-panel">
           <div class="buzz-board">
-            <h2>Orden de respuesta</h2>
+            <h2 data-i18n="host.responseOrder">Orden de respuesta</h2>
             <ol id="buzzList"></ol>
-            <button id="clearBuzzes">Limpiar buzzers</button>
+            <button id="clearBuzzes" data-i18n="host.clearBuzzers">Limpiar buzzers</button>
           </div>
           <div class="score-head">
-            <h2>Puntajes</h2>
+            <h2 data-i18n="host.scores">Puntajes</h2>
             <div id="scoreboard" class="scoreboard"></div>
-            <button id="resetGame" class="danger">Reiniciar juego</button>
+            <button id="resetGame" class="danger" data-i18n="host.resetGame">Reiniciar juego</button>
           </div>
         </aside>
       </section>
     </main>
+
     <div class="winner-modal hidden" id="winnerModal" role="dialog" aria-modal="true" aria-labelledby="winnerTitle">
       <div class="winner-card">
-        <p>Ganador</p>
+        <p data-i18n="common.winner">Ganador</p>
         <h2 id="winnerTitle">Jugador</h2>
         <span id="winnerScore">0 pts</span>
-        <button id="closeWinnerModal" type="button">Cerrar</button>
+        <div class="winner-actions">
+          <button id="continueMatch" class="primary" type="button" data-i18n="host.continueMatch">Continuar</button>
+          <button id="chooseAnotherPlaylist" type="button" data-i18n="host.choosePlaylist">Elegir otra playlist</button>
+        </div>
+        <button id="closeWinnerModal" type="button" data-i18n="host.close">Cerrar</button>
       </div>
     </div>
+
     <div class="rules-modal hidden" id="rulesModal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
       <div class="rules-card">
-        <p class="eyebrow">Antes de empezar</p>
-        <h2 id="rulesTitle">Reglas de En Una Nota</h2>
+        <p class="eyebrow" data-i18n="host.beforeStart">Antes de empezar</p>
+        <h2 id="rulesTitle" data-i18n="host.rulesTitle">Reglas de En Una Nota</h2>
         <ol>
-          <li>Durante los primeros 10 segundos vale tararear, cantar o decir el nombre de la canción; si el host presiona Continuar, SOLO vale decir el nombre de la canción.</li>
-          <li>Si respondes mal, pierdes 1 punto y pasa el turno al siguiente buzzer.</li>
-          <li>Si nadie la sabe, el host puede mostrar la respuesta o pasar a una nueva ronda.</li>
+          <li data-i18n="host.rule1">Durante los primeros 10 segundos vale tararear, cantar o decir el nombre de la cancion; si el host presiona Continuar, SOLO vale decir el nombre de la cancion.</li>
+          <li data-i18n="host.rule2">Si respondes mal, pierdes 1 punto y pasa el turno al siguiente buzzer.</li>
+          <li data-i18n="host.rule3">Si nadie la sabe, el host puede mostrar la respuesta o pasar a una nueva ronda.</li>
         </ol>
-        <button id="closeRulesModal" class="primary" type="button">Entendido</button>
+        <button id="closeRulesModal" class="primary" type="button" data-i18n="host.understood">Entendido</button>
       </div>
     </div>
+
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
     <script src="./host.js" type="module"></script>
   </body>

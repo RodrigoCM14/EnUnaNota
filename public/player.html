@@ -10,18 +10,22 @@
   <body class="player">
     <main class="phone">
       <section id="joinScreen" class="join-screen">
+        <div class="language-switcher phone-language" data-i18n-aria-label="common.language" aria-label="Idioma">
+          <button type="button" data-lang-choice="es"><span aria-hidden="true">🇪🇸</span><span data-i18n="common.spanish">Español</span></button>
+          <button type="button" data-lang-choice="en"><span aria-hidden="true">🇺🇸</span><span data-i18n="common.english">English</span></button>
+        </div>
         <img class="player-logo" src="./logo.png" alt="En Una Nota">
-        <h1>Tu buzzer</h1>
+        <h1 data-i18n="player.buzzerTitle">Tu buzzer</h1>
         <label>
-          Nombre
-          <input id="playerName" maxlength="24" autocomplete="name" placeholder="Tu nombre">
+          <span data-i18n="player.name">Nombre</span>
+          <input id="playerName" maxlength="24" autocomplete="name" placeholder="Tu nombre" data-i18n-placeholder="player.namePlaceholder">
         </label>
         <label>
-          Clave host <span class="optional-label">opcional</span>
-          <input id="adminKey" inputmode="numeric" autocomplete="off" placeholder="Solo para host">
+          <span><span data-i18n="player.hostKey">Clave host</span> <span class="optional-label" data-i18n="player.optional">opcional</span></span>
+          <input id="adminKey" inputmode="numeric" autocomplete="off" placeholder="Solo para host" data-i18n-placeholder="player.hostPlaceholder">
         </label>
         <p id="joinError" class="join-error"></p>
-        <button id="joinGame" class="primary">Entrar</button>
+        <button id="joinGame" class="primary" data-i18n="player.enter">Entrar</button>
       </section>
 
       <section id="buzzerScreen" class="buzzer-screen hidden">
@@ -33,21 +37,34 @@
           <span id="rank">-</span>
         </div>
         <button id="buzzButton" class="buzzer">BUZZ</button>
-        <p id="roundState" class="round-state">Sin ronda activa</p>
-        <p id="buzzState">Espera la cancion...</p>
+        <p id="roundState" class="round-state" data-i18n="player.noActiveRound">Sin ronda activa</p>
+        <p id="buzzState" data-i18n="player.waitSong">Espera la cancion...</p>
+        <section id="goldenVoteBox" class="player-vote hidden">
+          <strong data-i18n="host.goldenGoal">Buzz de Oro</strong>
+          <p id="goldenVoteText" data-i18n="player.voteActive">Votacion activa</p>
+          <div>
+            <button id="acceptGoldenVote" class="primary" type="button" data-i18n="player.accept">Aceptar</button>
+            <button id="rejectGoldenVote" type="button" data-i18n="player.reject">Rechazar</button>
+          </div>
+        </section>
         <section id="adminControls" class="admin-controls hidden">
-          <h2>Controles host</h2>
+          <h2 data-i18n="player.adminControls">Controles host</h2>
           <div class="admin-round-controls">
-            <button data-host-action="play-round">Reproducir</button>
-            <button data-host-action="replay-round">Repetir</button>
-            <button data-host-action="reveal-answer">Mostrar</button>
-            <button data-host-action="continue-song">Continuar</button>
-            <button data-host-action="play-full-song">Completa</button>
-            <button data-host-action="golden-goal">Buzz de Oro</button>
-            <button data-host-action="clear-buzzes">Limpiar</button>
+            <button data-host-action="play-round" data-i18n="host.play">Reproducir</button>
+            <button data-host-action="replay-round" data-i18n="host.replay">Repetir</button>
+            <button data-host-action="reveal-answer" data-i18n="host.reveal">Mostrar</button>
+            <button data-host-action="continue-song" data-i18n="host.continue">Continuar</button>
+            <button data-host-action="play-full-song" data-i18n="host.fullSong">Completa</button>
+            <button data-host-action="timer-10" data-i18n="host.timer10">Timer 10s</button>
+            <button data-host-action="golden-goal" data-i18n="host.goldenGoal">Buzz de Oro</button>
+            <button data-host-action="clear-buzzes" data-i18n="player.clear">Limpiar</button>
           </div>
           <div id="adminPlayerControls" class="admin-player-controls"></div>
-          <button class="danger" data-host-action="reset-game">Reiniciar juego</button>
+          <div id="adminEndControls" class="admin-end-controls hidden">
+            <button class="primary" data-host-action="continue-match" data-i18n="player.continueGame">Continuar partida</button>
+            <button data-host-action="choose-playlist" data-i18n="player.choosePlaylist">Elegir otra playlist</button>
+          </div>
+          <button class="danger" data-host-action="reset-game" data-i18n="host.resetGame">Reiniciar juego</button>
           <p id="adminStatus" class="admin-status"></p>
         </section>
       </section>
