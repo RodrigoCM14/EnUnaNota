@@ -23,6 +23,16 @@ const adminPlayerControls = $("#adminPlayerControls");
 const adminEndControls = $("#adminEndControls");
 const adminStatus = $("#adminStatus");
 
+function redirectLocalhostToLoopback() {
+  if (location.hostname !== "localhost" && location.hostname !== "::1" && location.hostname !== "[::1]") return false;
+  const url = new URL(location.href);
+  url.hostname = "127.0.0.1";
+  location.replace(url.href);
+  return true;
+}
+
+if (redirectLocalhostToLoopback()) await new Promise(() => {});
+
 let playerId = localStorage.getItem("en_una_nota_player_id") || crypto.randomUUID();
 const roomId = new URLSearchParams(location.search).get("room") || localStorage.getItem("en_una_nota_room") || "default";
 let eventSource = null;
@@ -109,7 +119,15 @@ function render() {
   const myRank = players.findIndex(player => player.id === playerId) + 1;
   const buzzed = state.buzzes.some(buzz => buzz.playerId === playerId);
   const first = state.buzzes[0]?.playerId === playerId;
-  const roundActive = Boolean(state.round && !state.round.revealed && !state.gameOver && !state.goldenVote?.active);
+  const eliminated = Boolean(state.round?.eliminatedPlayerIds?.includes(playerId));
+  const roundActive = Boolean(
+    state.round &&
+    state.round.acceptBuzzes !== false &&
+    !state.round.revealed &&
+    !state.gameOver &&
+    !state.goldenVote?.active &&
+    !eliminated
+  );
   const vote = state.goldenVote;
   const myVote = vote?.votes?.[playerId];
   buzzerScreen.classList.toggle("golden-goal-active", Boolean(state.goldenGoal));
@@ -127,6 +145,8 @@ function render() {
     buzzState.textContent = t("player.first");
   } else if (buzzed) {
     buzzState.textContent = t("player.buzzReceivedHost");
+  } else if (eliminated) {
+    buzzState.textContent = t("player.missedRound");
   } else if (roundActive) {
     buzzState.textContent = t("player.pressWhenKnow");
   } else if (state.round?.revealed) {
@@ -198,7 +218,11 @@ buzzButton.addEventListener("click", async () => {
   if (result.error) {
     buzzButton.classList.remove("buzzed");
     buzzState.textContent = translateServerMessage(result.error);
-    render();
+    if (result.error === "Ya fallaste esta ronda") {
+      buzzButton.disabled = true;
+    } else {
+      render();
+    }
   }
 });
 adminControls.addEventListener("click", event => {

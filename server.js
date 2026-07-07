@@ -244,8 +244,8 @@ function originFromRequest(req) {
   const resolved = (PUBLIC_URL || origin).replace(/^http:\/\/(.+\.onrender\.com)$/i, "https://$1");
   try {
     const url = new URL(resolved);
-    if (url.hostname === "127.0.0.1" || url.hostname === "[::1]" || url.hostname === "::1") {
-      url.hostname = "localhost";
+    if (url.hostname === "localhost" || url.hostname === "[::1]" || url.hostname === "::1") {
+      url.hostname = "127.0.0.1";
     }
     return url.origin;
   } catch {
@@ -648,11 +648,17 @@ async function handleApi(req, res, pathname, searchParams) {
   if (pathname === "/api/buzz") {
     const player = room.players[body.playerId];
     if (!player) return sendJson(res, 404, { error: "Jugador no encontrado" });
-    if (!room.round || room.round.revealed) {
+    if (!room.round || room.round.revealed || room.round.acceptBuzzes === false) {
       return sendJson(res, 409, { error: "No hay una ronda activa" });
     }
+    const eliminatedPlayerIds = Array.isArray(room.round.eliminatedPlayerIds) ? room.round.eliminatedPlayerIds : [];
+    if (eliminatedPlayerIds.includes(player.id)) {
+      return sendJson(res, 409, { error: "Ya fallaste esta ronda" });
+    }
     if (!room.buzzes.some(item => item.playerId === player.id)) {
-      const buzz = { playerId: player.id, name: player.name, at: Date.now() };
+      const at = Date.now();
+      const startedAt = Number(room.round.startedAt || at);
+      const buzz = { playerId: player.id, name: player.name, at, elapsedMs: Math.max(0, at - startedAt) };
       room.buzzes.push(buzz);
       player.buzzedAt = buzz.at;
       touch(room);
@@ -680,6 +686,11 @@ async function handleApi(req, res, pathname, searchParams) {
       room.buzzes = [];
       for (const participant of Object.values(room.players)) participant.buzzedAt = null;
     } else {
+      if (room.round) {
+        const eliminatedPlayerIds = Array.isArray(room.round.eliminatedPlayerIds) ? room.round.eliminatedPlayerIds : [];
+        if (!eliminatedPlayerIds.includes(player.id)) eliminatedPlayerIds.push(player.id);
+        room.round.eliminatedPlayerIds = eliminatedPlayerIds;
+      }
       room.buzzes = room.buzzes.filter(item => item.playerId !== player.id);
       player.buzzedAt = null;
     }
@@ -827,7 +838,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`En Una Nota listo en http://localhost:${PORT}`);
+  console.log(`En Una Nota listo en http://127.0.0.1:${PORT}`);
   for (const address of localAddresses()) {
     console.log(`Telefono en la misma red: http://${address}:${PORT}/player`);
   }

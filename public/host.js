@@ -43,6 +43,7 @@ const elements = {
   goldenVoteStatus: $("#goldenVoteStatus"),
   buzzList: $("#buzzList"),
   scoreboard: $("#scoreboard"),
+  languageSwitcher: $(".spotify-bar .language-switcher"),
   winnerModal: $("#winnerModal"),
   winnerTitle: $("#winnerTitle"),
   winnerScore: $("#winnerScore"),
@@ -87,12 +88,20 @@ const CONTINUE_TOTAL_MS = 30_000;
 
 function canonicalHostUrl() {
   const url = new URL(location.href);
-  if (url.hostname === "127.0.0.1" || url.hostname === "::1" || url.hostname === "[::1]") {
-    url.hostname = "localhost";
+  if (url.hostname === "localhost" || url.hostname === "::1" || url.hostname === "[::1]") {
+    url.hostname = "127.0.0.1";
   }
   if (url.hostname.endsWith(".onrender.com")) url.protocol = "https:";
   return url;
 }
+
+function redirectLocalhostToLoopback() {
+  if (location.hostname !== "localhost" && location.hostname !== "::1" && location.hostname !== "[::1]") return false;
+  location.replace(canonicalHostUrl().href);
+  return true;
+}
+
+if (redirectLocalhostToLoopback()) await new Promise(() => {});
 
 function room() {
   return elements.roomId?.value?.trim() || "default";
@@ -178,7 +187,7 @@ async function connectSpotify() {
     location.replace(url.href);
     return;
   }
-  if (location.hostname === "127.0.0.1" || location.hostname === "::1" || location.hostname === "[::1]") {
+  if (location.hostname === "localhost" || location.hostname === "::1" || location.hostname === "[::1]") {
     const url = canonicalHostUrl();
     url.searchParams.set("connect", "spotify");
     location.replace(url.href);
@@ -634,7 +643,9 @@ async function playRound() {
       positionMs,
       startedAt,
       stoppedAt: null,
-      revealed: false
+      revealed: false,
+      acceptBuzzes: false,
+      eliminatedPlayerIds: []
     }
   });
   activePlaybackDeviceId = deviceId;
@@ -648,7 +659,7 @@ async function playRound() {
     clipSeconds,
     playlistName: state?.playlistName || "",
     clearBuzzes: false,
-    round: { ...state.round, startedAt: Date.now(), stoppedAt: null }
+    round: { ...state.round, startedAt: Date.now(), stoppedAt: null, acceptBuzzes: true }
   });
   schedulePlaybackPause(clipSeconds);
 }
@@ -677,7 +688,7 @@ async function replayRound() {
     clipSeconds,
     playlistName: state?.playlistName || "",
     clearBuzzes: false,
-    round: { ...round, startedAt, stoppedAt: null, revealed: false }
+    round: { ...round, startedAt, stoppedAt: null, revealed: false, acceptBuzzes: false }
   });
   await playRoundBeep().catch(() => {});
   await wait(PLAYBACK_START_DELAY_MS);
@@ -689,7 +700,7 @@ async function replayRound() {
     clipSeconds,
     playlistName: state?.playlistName || "",
     clearBuzzes: false,
-    round: { ...state.round, startedAt: Date.now(), stoppedAt: null }
+    round: { ...state.round, startedAt: Date.now(), stoppedAt: null, acceptBuzzes: true }
   });
   schedulePlaybackPause(clipSeconds);
   setStatus("host.status.fragmentRepeated");
@@ -700,10 +711,10 @@ async function revealAnswer() {
   if (state?.round) {
     await stopPlaybackNow();
     await api("/api/round", {
-      round: { ...state.round, revealed: true, stoppedAt: state.round.stoppedAt || Date.now() },
+      round: { ...state.round, stoppedAt: state.round.stoppedAt || Date.now(), acceptBuzzes: false },
       clipSeconds: Number(state.clipSeconds || DEFAULT_CLIP_SECONDS),
       playlistName: state.playlistName || "",
-      clearBuzzes: true
+      clearBuzzes: false
     });
     setStatus("host.status.answerShown");
   } else {
@@ -853,9 +864,26 @@ function startManualTimer(seconds = 10) {
 }
 
 function formatBuzzTime(buzz) {
+  if (Number.isFinite(Number(buzz.elapsedMs))) return `${(Number(buzz.elapsedMs) / 1000).toFixed(1)}s`;
   const startedAt = Number(state?.round?.startedAt || buzz.at);
   const elapsed = Math.max(0, Number(buzz.at || Date.now()) - startedAt);
   return `${(elapsed / 1000).toFixed(1)}s`;
+}
+
+function updateLanguageSwitcherVisibility() {
+  if (!elements.languageSwitcher) return;
+  const gameStarted = Boolean(
+    state?.playlistName ||
+    state?.round ||
+    state?.roundNumber ||
+    state?.players?.length ||
+    state?.buzzes?.length ||
+    state?.goldenVote ||
+    state?.goldenGoal ||
+    state?.winner ||
+    state?.gameOver
+  );
+  elements.languageSwitcher.classList.toggle("hidden", gameStarted);
 }
 
 function showWinnerModal(winner) {
@@ -1018,6 +1046,7 @@ function render() {
   elements.trackTitle.textContent = showAnswer && round ? round.track.name : t("common.song");
   elements.trackArtist.textContent = showAnswer && round ? round.track.artists : t("common.artist");
   updateRoundMeter();
+  updateLanguageSwitcherVisibility();
   renderLocalizedGoldenVote();
 
   elements.buzzList.innerHTML = "";
