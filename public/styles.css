@@ -9,7 +9,6 @@
   --accent: #ffc42f;
   --accent-2: #16b8d8;
   --pink: #ff3f7f;
-  --purple: #9b4bd9;
   --success: #26d07c;
   --danger: #ff5f67;
   --ink: #09090b;
@@ -35,7 +34,6 @@ body {
     radial-gradient(circle at 86% 24%, rgba(22, 184, 216, 0.07), transparent 24%),
     radial-gradient(circle at 70% 88%, rgba(155, 75, 217, 0.08), transparent 28%),
     var(--bg);
-  background-size: 100% 100%, 100% 100%, 100% 100%;
   color: var(--text);
 }
 
@@ -135,6 +133,39 @@ label {
   font-size: 0.9rem;
 }
 
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  font-size: clamp(2rem, 5vw, 4.5rem);
+  line-height: 0.95;
+}
+
+h2 {
+  margin-bottom: 16px;
+}
+
+.hidden {
+  display: none;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
 .shell {
   position: relative;
   z-index: 1;
@@ -173,7 +204,8 @@ label {
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.52);
 }
 
-.welcome-logo {
+.welcome-logo,
+.player-logo {
   width: min(260px, 72vw);
   object-fit: contain;
 }
@@ -224,6 +256,38 @@ label {
   min-width: 0;
 }
 
+.brand-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.brand-logo {
+  width: clamp(120px, 18vw, 220px);
+  max-height: 130px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.header-qr {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.header-qr img {
+  width: clamp(58px, 7vw, 82px);
+  aspect-ratio: 1;
+  padding: 5px;
+  border-radius: 8px;
+  background: #fff;
+}
+
 .spotify-bar {
   display: flex;
   align-items: center;
@@ -232,6 +296,12 @@ label {
   gap: 10px;
   min-width: 0;
   flex: 1 1 420px;
+}
+
+.spotify-bar button {
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 14px;
 }
 
 .language-switcher {
@@ -266,17 +336,6 @@ label {
   color: var(--text);
 }
 
-.phone-language {
-  justify-self: center;
-  width: min(100%, 320px);
-}
-
-.spotify-bar button {
-  min-width: 0;
-  min-height: 42px;
-  padding: 0 14px;
-}
-
 .connection-pill {
   display: flex;
   align-items: center;
@@ -291,79 +350,6 @@ label {
   color: var(--muted);
 }
 
-#spotifyStatusText {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.92rem;
-}
-
-.eyebrow {
-  margin: 0 0 6px;
-  color: var(--accent);
-  font-size: 0.78rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0;
-}
-
-h1,
-h2,
-p {
-  margin-top: 0;
-}
-
-h1 {
-  margin-bottom: 0;
-  font-size: clamp(2rem, 5vw, 4.5rem);
-  line-height: 0.95;
-}
-
-.brand-title {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
-}
-
-.brand-logo {
-  width: clamp(120px, 18vw, 220px);
-  max-height: 130px;
-  object-fit: contain;
-  flex: 0 0 auto;
-}
-
-.header-qr {
-  display: grid;
-  gap: 6px;
-  justify-items: center;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.header-qr img {
-  width: clamp(58px, 7vw, 82px);
-  aspect-ratio: 1;
-  padding: 5px;
-  border-radius: 8px;
-  background: #fff;
-}
-
-h2 {
-  margin-bottom: 16px;
-}
-
-.status,
-.join-box {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px 14px;
-  background: var(--panel);
-  color: var(--muted);
-}
-
 .status {
   display: inline-grid;
   place-items: center;
@@ -371,6 +357,10 @@ h2 {
   min-width: 36px;
   min-height: 36px;
   padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
   font-size: 1.1rem;
   font-weight: 900;
 }
@@ -385,6 +375,13 @@ h2 {
   border-color: rgba(255, 106, 95, 0.5);
   background: rgba(255, 106, 95, 0.1);
   color: var(--danger);
+}
+
+#spotifyStatusText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.92rem;
 }
 
 .workspace {
@@ -403,44 +400,12 @@ h2 {
   padding: 18px;
 }
 
-.setup-panel {
+.setup-panel,
+.playlist-picker,
+.score-panel,
+.score-head {
   display: grid;
   gap: 14px;
-}
-
-.grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.join-box {
-  display: grid;
-  gap: 10px;
-  overflow-wrap: anywhere;
-}
-
-.join-box span {
-  color: var(--muted);
-}
-
-.join-box strong {
-  color: var(--text);
-  font-size: 0.95rem;
-}
-
-.join-box img {
-  width: min(180px, 100%);
-  aspect-ratio: 1;
-  justify-self: center;
-  padding: 8px;
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-.playlist-picker {
-  display: grid;
-  gap: 10px;
 }
 
 .picker-head {
@@ -489,9 +454,6 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.playlist-card span {
   font-weight: 800;
 }
 
@@ -594,6 +556,23 @@ h2 {
   font-weight: 900;
 }
 
+.meter-track {
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #111318;
+}
+
+.meter-track span {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-2);
+  transition: width 220ms linear;
+}
+
 .manual-timer {
   place-self: center;
   display: grid;
@@ -613,17 +592,21 @@ h2 {
   display: none;
 }
 
-.golden-vote-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.golden-vote-panel,
+.continue-warning {
   padding: 12px 14px;
   border: 1px solid rgba(255, 196, 47, 0.5);
   border-radius: 8px;
   background: rgba(255, 196, 47, 0.1);
   color: var(--accent);
   font-weight: 900;
+}
+
+.golden-vote-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .golden-vote-panel.hidden {
@@ -645,30 +628,6 @@ h2 {
   border-color: rgba(255, 95, 103, 0.62);
   background: rgba(255, 95, 103, 0.12);
   color: var(--danger);
-}
-
-#roundTimer {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.meter-track {
-  height: 12px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: #111318;
-}
-
-.meter-track span {
-  display: block;
-  width: 0%;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent-2);
-  transition: width 220ms linear;
 }
 
 .controls {
@@ -699,13 +658,10 @@ h2 {
   justify-self: center;
   width: min(100%, 620px);
   margin: 8px 0 0;
-  padding: 10px 14px;
-  border: 1px solid rgba(255, 95, 103, 0.32);
-  border-radius: 8px;
+  border-color: rgba(255, 95, 103, 0.32);
   background: rgba(255, 95, 103, 0.08);
   color: rgba(255, 196, 200, 0.95);
   font-size: 0.86rem;
-  font-weight: 800;
   text-align: center;
 }
 
@@ -761,7 +717,8 @@ h2 {
 }
 
 .buzz-item strong,
-.score-row strong {
+.score-row strong,
+.admin-player-row strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -774,13 +731,15 @@ h2 {
   font-weight: 900;
 }
 
-.score-action.positive {
+.score-action.positive,
+.admin-player-row button[data-delta="1"] {
   border-color: rgba(38, 208, 124, 0.75);
   background: rgba(38, 208, 124, 0.16);
   color: var(--success);
 }
 
-.score-action.negative {
+.score-action.negative,
+.admin-player-row button[data-delta="-1"] {
   border-color: rgba(255, 106, 95, 0.7);
   background: rgba(255, 106, 95, 0.14);
   color: var(--danger);
@@ -790,16 +749,6 @@ h2 {
   display: grid;
   gap: 10px;
   margin-bottom: 16px;
-}
-
-.score-panel {
-  display: grid;
-  gap: 18px;
-}
-
-.score-head {
-  display: grid;
-  gap: 10px;
 }
 
 .score {
@@ -834,35 +783,34 @@ h2 {
   font-weight: 900;
 }
 
-.winner-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(16, 17, 20, 0.78);
-}
-
-.winner-modal.hidden {
-  display: none;
-}
-
+.winner-modal,
 .rules-modal {
   position: fixed;
   inset: 0;
-  z-index: 30;
   display: grid;
   place-items: center;
   padding: 24px;
+}
+
+.winner-modal {
+  z-index: 20;
+  background: rgba(16, 17, 20, 0.78);
+}
+
+.rules-modal {
+  z-index: 60;
   background: rgba(6, 6, 8, 0.86);
 }
 
+.winner-modal.hidden,
 .rules-modal.hidden {
   display: none;
 }
 
+.winner-card,
 .rules-card {
+  position: relative;
+  z-index: 1;
   width: min(100%, 520px);
   display: grid;
   gap: 14px;
@@ -873,7 +821,14 @@ h2 {
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.48);
 }
 
-.rules-card h2 {
+.winner-card {
+  width: min(100%, 420px);
+  border-color: rgba(38, 208, 124, 0.65);
+  text-align: center;
+}
+
+.rules-card h2,
+.winner-card h2 {
   margin: 0;
 }
 
@@ -886,20 +841,6 @@ h2 {
   line-height: 1.45;
 }
 
-.winner-card {
-  position: relative;
-  z-index: 1;
-  width: min(100%, 420px);
-  display: grid;
-  gap: 14px;
-  padding: 28px;
-  border: 1px solid rgba(38, 208, 124, 0.65);
-  border-radius: 8px;
-  background: var(--panel);
-  text-align: center;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-}
-
 .winner-card p {
   margin: 0;
   color: var(--success);
@@ -908,7 +849,6 @@ h2 {
 }
 
 .winner-card h2 {
-  margin: 0;
   font-size: clamp(2rem, 7vw, 4rem);
 }
 
@@ -976,10 +916,9 @@ h2 {
   gap: 16px;
 }
 
-.player-logo {
-  width: min(220px, 72vw);
+.phone-language {
   justify-self: center;
-  object-fit: contain;
+  width: min(100%, 320px);
 }
 
 .join-error {
@@ -998,10 +937,6 @@ h2 {
 
 .buzzer-screen {
   gap: 22px;
-}
-
-.hidden {
-  display: none;
 }
 
 .player-head {
@@ -1037,7 +972,6 @@ h2 {
   background: rgba(255, 196, 47, 0.12);
   color: var(--accent);
   font-weight: 900;
-  box-shadow: 0 0 0 8px rgba(255, 196, 47, 0.04);
 }
 
 .buzzer {
@@ -1062,7 +996,6 @@ h2 {
   background:
     radial-gradient(circle at 34% 26%, rgba(255, 248, 236, 0.75), transparent 0 8%, transparent 9%),
     linear-gradient(135deg, var(--success), var(--accent-2));
-  border-color: rgba(255, 248, 236, 0.9);
   box-shadow:
     0 10px 0 rgba(9, 9, 11, 0.9),
     0 18px 34px rgba(0, 0, 0, 0.42),
@@ -1073,7 +1006,6 @@ h2 {
   background:
     radial-gradient(circle at 34% 26%, rgba(255, 248, 236, 0.88), transparent 0 8%, transparent 9%),
     linear-gradient(135deg, #fff2a8, #ffc42f 48%, #c78a10);
-  border-color: rgba(255, 248, 236, 0.92);
   box-shadow:
     0 18px 0 rgba(91, 58, 6, 0.9),
     0 28px 50px rgba(0, 0, 0, 0.45),
@@ -1088,7 +1020,16 @@ h2 {
   font-size: 1.2rem;
 }
 
-.admin-controls {
+.round-state {
+  min-height: 28px;
+  margin: 6px 0 0;
+  text-align: center;
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.admin-controls,
+.player-vote {
   display: grid;
   gap: 14px;
   padding: 14px;
@@ -1097,7 +1038,9 @@ h2 {
   background: rgba(23, 20, 25, 0.78);
 }
 
-.admin-controls.hidden {
+.admin-controls.hidden,
+.admin-end-controls.hidden,
+.player-vote.hidden {
   display: none;
 }
 
@@ -1107,7 +1050,8 @@ h2 {
   font-size: 1rem;
 }
 
-.admin-round-controls {
+.admin-round-controls,
+.player-vote div {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
@@ -1131,10 +1075,6 @@ h2 {
   gap: 8px;
 }
 
-.admin-end-controls.hidden {
-  display: none;
-}
-
 .admin-player-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
@@ -1144,12 +1084,6 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(6, 6, 8, 0.42);
-}
-
-.admin-player-row strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .admin-player-row span {
@@ -1164,44 +1098,12 @@ h2 {
   font-weight: 900;
 }
 
-.admin-player-row button[data-delta="1"] {
-  border-color: rgba(38, 208, 124, 0.75);
-  color: var(--success);
-}
-
-.admin-player-row button[data-delta="-1"] {
-  border-color: rgba(255, 106, 95, 0.7);
-  color: var(--danger);
-}
-
 .admin-status {
   min-height: 20px;
   margin: 0;
   color: var(--muted);
   font-size: 0.86rem;
   text-align: center;
-}
-
-.round-state {
-  min-height: 28px;
-  margin: 6px 0 0;
-  text-align: center;
-  color: var(--accent);
-  font-weight: 800;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
-}
-
-.player-vote {
-  display: grid;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid rgba(255, 196, 47, 0.5);
-  border-radius: 8px;
-  background: rgba(255, 196, 47, 0.1);
-}
-
-.player-vote.hidden {
-  display: none;
 }
 
 .player-vote strong {
@@ -1211,12 +1113,6 @@ h2 {
 .player-vote p {
   margin: 0;
   color: var(--muted);
-}
-
-.player-vote div {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
 }
 
 .player-vote button.selected {
@@ -1258,10 +1154,7 @@ h2 {
   }
 
   .spotify-bar button,
-  .connection-pill {
-    width: 100%;
-  }
-
+  .connection-pill,
   .language-switcher {
     width: 100%;
   }
