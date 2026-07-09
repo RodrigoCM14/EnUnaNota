@@ -330,6 +330,14 @@ function validToken() {
   return accessToken && Date.now() < tokenExpiresAt - 30_000;
 }
 
+async function ensureSpotifyAccessToken(statusKey = "host.status.connectFirst") {
+  if (validToken()) return true;
+  const refreshed = await refreshSpotifyToken();
+  if (refreshed && validToken()) return true;
+  setStatus(statusKey);
+  return false;
+}
+
 function schedulePlaybackPause(clipSeconds) {
   if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
   pausePlaybackTimeoutId = window.setTimeout(async () => {
@@ -478,7 +486,11 @@ function waitForScreenDevice(timeoutMs = 8000) {
 }
 
 async function initPlayer(activate = false) {
-  if (spotifyPlayer || !validToken()) return;
+  if (!await ensureSpotifyAccessToken()) return false;
+  if (spotifyPlayer) {
+    if (activate) spotifyPlayer.activateElement?.();
+    return true;
+  }
   setStatus("host.status.startingPlayer");
   await Promise.race([
     waitForSpotifySdk(),
@@ -500,15 +512,12 @@ async function initPlayer(activate = false) {
   const connected = await spotifyPlayer.connect();
   if (!connected) throw new Error(t("host.status.playerFailed"));
   await waitForScreenDevice();
+  return true;
 }
 
 async function activateScreenPlayer() {
-  if (!validToken()) await refreshSpotifyToken();
-  if (!validToken()) {
-    setStatus("host.status.connectFirst");
-    return;
-  }
-  await initPlayer(true);
+  const playerReady = await initPlayer(true);
+  if (!playerReady) return;
   if (!spotifyPlayer || !spotifyDeviceId) {
     setStatus("host.status.screenNotReady");
     return;
@@ -621,14 +630,20 @@ async function playRound() {
     setStatus("host.status.gameOver");
     return;
   }
-  await initPlayer().catch(error => setStatus(error.message));
+  if (!playlistTracks.length) {
+    setStatus("host.status.loadPlaylistFirst");
+    return;
+  }
+  try {
+    const playerReady = await initPlayer(true);
+    if (!playerReady) return;
+  } catch (error) {
+    setStatus(error.message || t("host.status.playerFailed"));
+    return;
+  }
   const deviceId = spotifyDeviceId || await findSpotifyDevice();
   if (!deviceId) {
     setStatus("host.status.openDevicePlay");
-    return;
-  }
-  if (!playlistTracks.length) {
-    setStatus("host.status.loadPlaylistFirst");
     return;
   }
   const track = pickUnplayedTrack();
@@ -684,6 +699,13 @@ async function replayRound() {
   const round = state?.round;
   if (!round?.track?.uri) {
     setStatus("host.status.noFragment");
+    return;
+  }
+  try {
+    const playerReady = await initPlayer(true);
+    if (!playerReady) return;
+  } catch (error) {
+    setStatus(error.message || t("host.status.playerFailed"));
     return;
   }
   const deviceId = activePlaybackDeviceId || spotifyDeviceId || await findSpotifyDevice();
@@ -758,6 +780,13 @@ async function playSongFromCurrentRound(mode) {
   }
   if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
   pausePlaybackTimeoutId = null;
+  try {
+    const playerReady = await initPlayer(true);
+    if (!playerReady) return;
+  } catch (error) {
+    setStatus(error.message || t("host.status.playerFailed"));
+    return;
+  }
   const deviceId = activePlaybackDeviceId || spotifyDeviceId || await findSpotifyDevice();
   if (!deviceId) {
     setStatus("host.status.openDeviceContinue");
