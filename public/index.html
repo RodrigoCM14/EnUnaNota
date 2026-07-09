@@ -13,7 +13,7 @@
         <img class="welcome-logo" src="./logo.png" alt="En Una Nota">
         <p class="eyebrow" data-i18n="host.welcomeEyebrow">Juego musical de fiesta</p>
         <h1 id="welcomeTitle" data-i18n="host.welcomeTitle">En Una Nota</h1>
-        <p class="welcome-copy" data-i18n="host.welcomeSubtitle">Elige idioma y conecta Spotify para preparar la partida.</p>
+        <p class="welcome-copy" data-i18n="host.welcomeSubtitle">Elige idioma para preparar la partida.</p>
         <div class="welcome-language">
           <span data-i18n="host.chooseLanguage">Idioma</span>
           <div class="language-switcher" data-i18n-aria-label="common.language" aria-label="Idioma">
@@ -22,10 +22,9 @@
           </div>
         </div>
         <div class="welcome-actions">
-          <button id="connectSpotify" class="primary welcome-connect" data-i18n="host.connectSpotify">Conectar Spotify</button>
-          <button id="closeWelcome" type="button" data-i18n="host.enterGame">Entrar al juego</button>
+          <button id="closeWelcome" class="primary" type="button" data-i18n="host.enterGame">Entrar al juego</button>
         </div>
-        <p id="welcomeStatus" class="welcome-status" data-i18n="host.welcomeSpotifyHint">Necesitas Spotify Premium para reproducir desde esta pantalla.</p>
+        <p id="welcomeStatus" class="welcome-status" data-i18n="host.welcomeSpotifyHint">Puedes cambiar el idioma despues desde la pantalla del juego.</p>
       </div>
     </section>
 
@@ -45,6 +44,7 @@
             <div class="status disconnected" id="spotifyStatus" title="Spotify sin conectar" aria-label="Spotify sin conectar" data-i18n-title="common.spotifyDisconnected" data-i18n-aria-label="common.spotifyDisconnected">&#10005;</div>
             <span id="spotifyStatusText" data-i18n="common.spotifyDisconnected">Spotify sin conectar</span>
           </div>
+          <button id="connectSpotify" class="primary" type="button" data-i18n="host.connectSpotify">Conectar Spotify</button>
           <button id="changeLanguage" type="button" data-i18n="host.changeLanguage">Cambiar idioma</button>
           <button id="disconnectSpotify" type="button" data-i18n="host.disconnectSpotify">Desconectar</button>
         </div>

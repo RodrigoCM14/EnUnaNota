@@ -240,7 +240,7 @@ async function disconnectSpotify() {
   resetContinueButton();
   spotifyPlayer?.disconnect?.();
   spotifyPlayer = null;
-  showWelcome();
+  hideWelcome({ remember: true });
   setStatus("host.status.spotifyDisconnected");
 }
 
