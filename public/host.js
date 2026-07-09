@@ -29,7 +29,6 @@ const elements = {
   goldenGoal: $("#goldenGoal"),
   clearBuzzes: $("#clearBuzzes"),
   resetGame: $("#resetGame"),
-  copyJoinUrl: $("#copyJoinUrl"),
   spotifyStatus: $("#spotifyStatus"),
   spotifyStatusText: $("#spotifyStatusText"),
   joinUrl: $("#joinUrl"),
@@ -68,7 +67,6 @@ let refreshToken = "";
 let tokenExpiresAt = 0;
 let spotifyPlayer = null;
 let spotifyDeviceId = "";
-let externalDeviceId = "";
 let activePlaybackDeviceId = "";
 let playlistTracks = [];
 let playedTrackUris = new Set(JSON.parse(localStorage.getItem("played_track_uris") || "[]"));
@@ -78,7 +76,6 @@ let state = null;
 let lastWinnerId = "";
 let songPlaybackMode = "";
 let phoneBaseUrl = "";
-let timerId = null;
 let pausePlaybackTimeoutId = null;
 let lastHostCommandId = "";
 let connectAfterRules = false;
@@ -191,16 +188,6 @@ function updateJoinUrl() {
   elements.joinQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&data=${encodeURIComponent(url.href)}`;
 }
 
-async function copyJoinUrl() {
-  const text = elements.joinUrl.textContent;
-  await navigator.clipboard.writeText(text);
-  const previous = elements.copyJoinUrl.textContent;
-  elements.copyJoinUrl.textContent = t("common.copied");
-  window.setTimeout(() => {
-    elements.copyJoinUrl.textContent = previous;
-  }, 1200);
-}
-
 async function loadServerInfo() {
   const response = await fetch("/api/info");
   const info = await response.json();
@@ -255,11 +242,6 @@ async function disconnectSpotify() {
   spotifyPlayer = null;
   showWelcome();
   setStatus("host.status.spotifyDisconnected");
-}
-
-async function forgetSpotifySessionOnFreshLoad() {
-  const params = new URLSearchParams(location.search);
-  if (params.get("spotify") || params.get("code") || params.get("error") || params.get("connect") === "spotify") return;
 }
 
 function saveToken(token) {
@@ -469,8 +451,13 @@ async function spotify(path, options = {}) {
 
 function waitForSpotifySdk() {
   return new Promise(resolve => {
-    if (window.Spotify) return resolve();
-    window.onSpotifyWebPlaybackSDKReady = resolve;
+    if (window.Spotify || window.spotifyWebPlaybackSdkReady) return resolve();
+    const previousReady = window.onSpotifyWebPlaybackSDKReady;
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      window.spotifyWebPlaybackSdkReady = true;
+      previousReady?.();
+      resolve();
+    };
   });
 }
 
@@ -531,7 +518,6 @@ async function activateScreenPlayer() {
     method: "PUT",
     body: JSON.stringify({ device_ids: [spotifyDeviceId], play: false })
   });
-  externalDeviceId = "";
   activePlaybackDeviceId = spotifyDeviceId;
   setStatus("host.status.screenActive");
 }
@@ -547,10 +533,9 @@ async function findSpotifyDevice() {
   const active = devices.find(device => device.is_active);
   const usable = active || devices[0];
   if (usable?.id) {
-    externalDeviceId = usable.id;
     activePlaybackDeviceId = usable.id;
     setStatus(`Spotify listo en ${usable.name}`);
-    return externalDeviceId;
+    return activePlaybackDeviceId;
   }
   return "";
 }
@@ -959,28 +944,6 @@ async function processHostCommand(command) {
   if (action === "score") await scorePlayer(command.playerId, command.delta);
 }
 
-function renderGoldenVote() {
-  const vote = state?.goldenVote;
-  if (!elements.goldenVotePanel || !elements.goldenVoteStatus) return;
-  const showVote = Boolean(vote) || state?.goldenGoal;
-  elements.goldenVotePanel.classList.toggle("hidden", !showVote);
-  elements.goldenVotePanel.classList.toggle("approved", Boolean(state?.goldenGoal || vote?.approved));
-  elements.goldenVotePanel.classList.toggle("rejected", Boolean(vote?.rejected));
-  if (!showVote) return;
-  if (state.goldenGoal) {
-    elements.goldenVotePanel.querySelector("strong").textContent = "Buzz de Oro activo";
-    elements.goldenVoteStatus.textContent = "El proximo acierto gana";
-    return;
-  }
-  if (vote.rejected) {
-    elements.goldenVotePanel.querySelector("strong").textContent = "Buzz de Oro rechazado";
-    elements.goldenVoteStatus.textContent = `${vote.yes || 0} si / ${vote.no || 0} no`;
-    return;
-  }
-  elements.goldenVotePanel.querySelector("strong").textContent = "Buzz de Oro propuesto";
-  elements.goldenVoteStatus.textContent = `${vote.yes || 0} si / ${vote.no || 0} no · requiere ${vote.required || 0} de ${vote.total || 0}`;
-}
-
 function renderLocalizedGoldenVote() {
   const vote = state?.goldenVote;
   if (!elements.goldenVotePanel || !elements.goldenVoteStatus) return;
@@ -1158,7 +1121,6 @@ elements.resetGame.addEventListener("click", () => {
   resetPlayedTracks();
   api("/api/reset");
 });
-elements.copyJoinUrl?.addEventListener("click", () => copyJoinUrl().catch(() => setStatus("host.status.copyFailed")));
 elements.roomId?.addEventListener("change", () => {
   localStorage.setItem("room_id", room());
   updateJoinUrl();
@@ -1183,8 +1145,7 @@ if (elements.playlistUrl) elements.playlistUrl.value = localStorage.getItem("spo
 if (elements.roomId) {
   elements.roomId.value = localStorage.getItem("room_id") || new URLSearchParams(location.search).get("room") || "default";
 }
-forgetSpotifySessionOnFreshLoad()
-  .then(() => finishAuth())
+finishAuth()
   .then(async authResult => {
     const params = new URLSearchParams(location.search);
     if (authResult === "connected") hideWelcome({ remember: true });
@@ -1210,4 +1171,4 @@ forgetSpotifySessionOnFreshLoad()
 updateJoinUrl();
 loadServerInfo().catch(() => {});
 connectEvents();
-timerId = window.setInterval(updateRoundMeter, 250);
+window.setInterval(updateRoundMeter, 250);

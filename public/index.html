@@ -139,6 +139,12 @@
       </div>
     </div>
 
+    <script>
+      window.spotifyWebPlaybackSdkReady = false;
+      window.onSpotifyWebPlaybackSDKReady = function () {
+        window.spotifyWebPlaybackSdkReady = true;
+      };
+    </script>
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
     <script src="./host.js" type="module"></script>
   </body>
