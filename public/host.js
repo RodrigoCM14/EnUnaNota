@@ -1171,6 +1171,7 @@ forgetSpotifySessionOnFreshLoad()
   .then(() => finishAuth())
   .then(async authResult => {
     const params = new URLSearchParams(location.search);
+    if (authResult === "connected") hideWelcome();
     const serverSession = authResult === "connected" ? await refreshSpotifyToken() : false;
     if (!serverSession && validToken()) setStatus("host.status.connected");
     if (validToken()) {
