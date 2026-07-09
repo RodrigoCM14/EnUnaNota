@@ -8,6 +8,24 @@
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body class="host">
+    <section id="welcomeScreen" class="welcome-screen" aria-labelledby="welcomeTitle">
+      <div class="welcome-card">
+        <img class="welcome-logo" src="./logo.png" alt="En Una Nota">
+        <p class="eyebrow" data-i18n="host.welcomeEyebrow">Juego musical de fiesta</p>
+        <h1 id="welcomeTitle" data-i18n="host.welcomeTitle">En Una Nota</h1>
+        <p class="welcome-copy" data-i18n="host.welcomeSubtitle">Elige idioma y conecta Spotify para preparar la partida.</p>
+        <div class="welcome-language">
+          <span data-i18n="host.chooseLanguage">Idioma</span>
+          <div class="language-switcher" data-i18n-aria-label="common.language" aria-label="Idioma">
+            <button type="button" data-lang-choice="es"><span aria-hidden="true">🇪🇸</span><span data-i18n="common.spanish">Español</span></button>
+            <button type="button" data-lang-choice="en"><span aria-hidden="true">🇺🇸</span><span data-i18n="common.english">English</span></button>
+          </div>
+        </div>
+        <button id="connectSpotify" class="primary welcome-connect" data-i18n="host.connectSpotify">Conectar Spotify</button>
+        <p id="welcomeStatus" class="welcome-status" data-i18n="host.welcomeSpotifyHint">Necesitas Spotify Premium para reproducir desde esta pantalla.</p>
+      </div>
+    </section>
+
     <main class="shell">
       <section class="topbar">
         <div>
@@ -20,15 +38,10 @@
           </div>
         </div>
         <div class="spotify-bar">
-          <div class="language-switcher" data-i18n-aria-label="common.language" aria-label="Idioma">
-            <button type="button" data-lang-choice="es"><span aria-hidden="true">🇪🇸</span><span data-i18n="common.spanish">Español</span></button>
-            <button type="button" data-lang-choice="en"><span aria-hidden="true">🇺🇸</span><span data-i18n="common.english">English</span></button>
-          </div>
           <div class="connection-pill">
             <div class="status disconnected" id="spotifyStatus" title="Spotify sin conectar" aria-label="Spotify sin conectar" data-i18n-title="common.spotifyDisconnected" data-i18n-aria-label="common.spotifyDisconnected">&#10005;</div>
             <span id="spotifyStatusText" data-i18n="common.spotifyDisconnected">Spotify sin conectar</span>
           </div>
-          <button id="connectSpotify" class="primary" data-i18n="host.connectSpotify">Conectar Spotify</button>
           <button id="disconnectSpotify" type="button" data-i18n="host.disconnectSpotify">Desconectar</button>
         </div>
       </section>

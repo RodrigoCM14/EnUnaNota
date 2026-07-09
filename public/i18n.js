@@ -23,6 +23,11 @@ const translations = {
 
     "host.connectSpotify": "Conectar Spotify",
     "host.disconnectSpotify": "Desconectar",
+    "host.welcomeEyebrow": "Juego musical de fiesta",
+    "host.welcomeTitle": "En Una Nota",
+    "host.welcomeSubtitle": "Elige idioma y conecta Spotify para preparar la partida.",
+    "host.chooseLanguage": "Idioma",
+    "host.welcomeSpotifyHint": "Necesitas Spotify Premium para reproducir desde esta pantalla.",
     "host.yourPlaylists": "Tus playlists",
     "host.refresh": "Actualizar",
     "host.connectToSeePlaylists": "Conecta Spotify para ver tus playlists.",
@@ -173,6 +178,11 @@ const translations = {
 
     "host.connectSpotify": "Connect Spotify",
     "host.disconnectSpotify": "Disconnect",
+    "host.welcomeEyebrow": "Music party game",
+    "host.welcomeTitle": "En Una Nota",
+    "host.welcomeSubtitle": "Choose a language and connect Spotify to set up the game.",
+    "host.chooseLanguage": "Language",
+    "host.welcomeSpotifyHint": "Spotify Premium is required to play from this screen.",
     "host.yourPlaylists": "Your playlists",
     "host.refresh": "Refresh",
     "host.connectToSeePlaylists": "Connect Spotify to see your playlists.",

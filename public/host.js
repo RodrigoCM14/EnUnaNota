@@ -6,6 +6,8 @@ const DEFAULT_SPOTIFY_CLIENT_ID = "8791a946e68c476cac41c3d5023a86a7";
 const DEFAULT_CLIP_SECONDS = 10;
 
 const elements = {
+  welcomeScreen: $("#welcomeScreen"),
+  welcomeStatus: $("#welcomeStatus"),
   clientId: $("#clientId"),
   playlistUrl: $("#playlistUrl"),
   roomId: $("#roomId"),
@@ -43,7 +45,6 @@ const elements = {
   goldenVoteStatus: $("#goldenVoteStatus"),
   buzzList: $("#buzzList"),
   scoreboard: $("#scoreboard"),
-  languageSwitcher: $(".spotify-bar .language-switcher"),
   winnerModal: $("#winnerModal"),
   winnerTitle: $("#winnerTitle"),
   winnerScore: $("#winnerScore"),
@@ -138,6 +139,17 @@ function setStatus(message, values = {}) {
   elements.spotifyStatus.classList.toggle("connected", connected);
   elements.spotifyStatus.classList.toggle("disconnected", !connected);
   elements.spotifyStatusText.textContent = text;
+  if (elements.welcomeStatus) elements.welcomeStatus.textContent = text;
+}
+
+function showWelcome() {
+  elements.welcomeScreen?.classList.remove("hidden");
+  document.body.classList.add("welcome-active");
+}
+
+function hideWelcome() {
+  elements.welcomeScreen?.classList.add("hidden");
+  document.body.classList.remove("welcome-active");
 }
 
 function spotifyClientId() {
@@ -220,6 +232,7 @@ async function disconnectSpotify() {
   resetContinueButton();
   spotifyPlayer?.disconnect?.();
   spotifyPlayer = null;
+  showWelcome();
   setStatus("host.status.spotifyDisconnected");
 }
 
@@ -870,22 +883,6 @@ function formatBuzzTime(buzz) {
   return `${(elapsed / 1000).toFixed(1)}s`;
 }
 
-function updateLanguageSwitcherVisibility() {
-  if (!elements.languageSwitcher) return;
-  const gameStarted = Boolean(
-    state?.playlistName ||
-    state?.round ||
-    state?.roundNumber ||
-    state?.players?.length ||
-    state?.buzzes?.length ||
-    state?.goldenVote ||
-    state?.goldenGoal ||
-    state?.winner ||
-    state?.gameOver
-  );
-  elements.languageSwitcher.classList.toggle("hidden", gameStarted);
-}
-
 function showWinnerModal(winner) {
   if (!winner || !elements.winnerModal) return;
   elements.winnerTitle.textContent = winner.name || t("common.player");
@@ -1046,7 +1043,6 @@ function render() {
   elements.trackTitle.textContent = showAnswer && round ? round.track.name : t("common.song");
   elements.trackArtist.textContent = showAnswer && round ? round.track.artists : t("common.artist");
   updateRoundMeter();
-  updateLanguageSwitcherVisibility();
   renderLocalizedGoldenVote();
 
   elements.buzzList.innerHTML = "";
@@ -1122,6 +1118,7 @@ function refreshLanguage() {
 
 initLanguageControls(refreshLanguage);
 refreshLanguage();
+showWelcome();
 
 elements.connectSpotify.addEventListener("click", showRulesBeforeConnect);
 elements.activateScreenPlayer?.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || t("host.status.activateScreenFailed"))));
@@ -1177,6 +1174,7 @@ forgetSpotifySessionOnFreshLoad()
     const serverSession = authResult === "connected" ? await refreshSpotifyToken() : false;
     if (!serverSession && validToken()) setStatus("host.status.connected");
     if (validToken()) {
+      hideWelcome();
       sessionStorage.removeItem("spotify_auto_connect_attempted");
       loadUserPlaylists().catch(error => setStatus(error.message));
       activateScreenPlayer().catch(() => setStatus("host.status.reactivatePlayer"));
@@ -1184,9 +1182,14 @@ forgetSpotifySessionOnFreshLoad()
       sessionStorage.setItem("spotify_auto_connect_attempted", "1");
       history.replaceState({}, "", location.pathname);
       await connectSpotify();
+    } else {
+      showWelcome();
     }
   })
-  .catch(error => setStatus(error.message));
+  .catch(error => {
+    showWelcome();
+    setStatus(error.message);
+  });
 updateJoinUrl();
 loadServerInfo().catch(() => {});
 connectEvents();
