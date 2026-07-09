@@ -617,6 +617,16 @@ async function handleApi(req, res, pathname, searchParams) {
 
   const body = await readBody(req);
 
+  if (pathname === "/api/spotify-token") {
+    const tokenBody = new URLSearchParams();
+    for (const [key, value] of Object.entries(body || {})) {
+      if (value !== undefined && value !== null && value !== "") tokenBody.set(key, String(value));
+    }
+    const result = await requestSpotifyToken(tokenBody);
+    sendJson(res, result.status, result.token);
+    return;
+  }
+
   if (pathname === "/api/spotify-logout") {
     const sid = parseCookies(req).spotify_sid;
     if (sid) spotifySessions.delete(sid);

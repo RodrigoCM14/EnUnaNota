@@ -5,6 +5,15 @@ const $ = selector => document.querySelector(selector);
 const DEFAULT_SPOTIFY_CLIENT_ID = "8791a946e68c476cac41c3d5023a86a7";
 const DEFAULT_CLIP_SECONDS = 10;
 const WELCOME_SEEN_KEY = "en_una_nota_welcome_seen";
+const SPOTIFY_SCOPES = [
+  "streaming",
+  "user-read-email",
+  "user-read-private",
+  "user-read-playback-state",
+  "user-modify-playback-state",
+  "playlist-read-private",
+  "playlist-read-collaborative"
+];
 
 const elements = {
   welcomeScreen: $("#welcomeScreen"),
@@ -58,13 +67,9 @@ const elements = {
   closeRulesModal: $("#closeRulesModal")
 };
 
-localStorage.removeItem("spotify_access_token");
-localStorage.removeItem("spotify_refresh_token");
-localStorage.removeItem("spotify_expires_at");
-
-let accessToken = "";
-let refreshToken = "";
-let tokenExpiresAt = 0;
+let accessToken = localStorage.getItem("spotify_access_token") || "";
+let refreshToken = localStorage.getItem("spotify_refresh_token") || "";
+let tokenExpiresAt = Number(localStorage.getItem("spotify_expires_at") || 0);
 let spotifyPlayer = null;
 let spotifyDeviceId = "";
 let activePlaybackDeviceId = "";
@@ -180,6 +185,25 @@ function spotifyRedirectUri() {
   return url.origin + url.pathname;
 }
 
+function randomString(length) {
+  const values = new Uint8Array(length);
+  crypto.getRandomValues(values);
+  return Array.from(values, value => ("0" + (value % 36).toString(36)).slice(-1)).join("");
+}
+
+function base64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+async function codeChallenge(verifier) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return base64Url(digest);
+}
+
 function updateJoinUrl() {
   const base = phoneBaseUrl || location.origin;
   const url = new URL("/player", base);
@@ -219,8 +243,18 @@ async function connectSpotify() {
     return;
   }
   localStorage.setItem("spotify_client_id", clientId);
-  const url = new URL("/api/spotify-login", location.origin);
+  const verifier = randomString(96);
+  const state = randomString(32);
+  localStorage.setItem("spotify_code_verifier", verifier);
+  localStorage.setItem("spotify_auth_state", state);
+  const url = new URL("https://accounts.spotify.com/authorize");
+  url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", clientId);
+  url.searchParams.set("scope", SPOTIFY_SCOPES.join(" "));
+  url.searchParams.set("code_challenge_method", "S256");
+  url.searchParams.set("code_challenge", await codeChallenge(verifier));
+  url.searchParams.set("redirect_uri", spotifyRedirectUri());
+  url.searchParams.set("state", state);
   setStatus("host.status.openingSpotify");
   location.assign(url.href);
 }
@@ -248,6 +282,9 @@ function saveToken(token) {
   accessToken = token.access_token || accessToken;
   refreshToken = token.refresh_token || refreshToken;
   tokenExpiresAt = Date.now() + Number(token.expires_in || 3600) * 1000;
+  if (accessToken) localStorage.setItem("spotify_access_token", accessToken);
+  if (refreshToken) localStorage.setItem("spotify_refresh_token", refreshToken);
+  localStorage.setItem("spotify_expires_at", String(tokenExpiresAt));
 }
 
 async function spotifyToken(body) {
@@ -315,14 +352,17 @@ async function finishAuth() {
 }
 
 async function refreshSpotifyToken() {
-  const response = await fetch("/api/spotify-session");
-  const session = await response.json().catch(() => ({ connected: false }));
-  if (!response.ok || !session.connected || !session.accessToken) {
-    return false;
-  }
-  accessToken = session.accessToken;
-  tokenExpiresAt = Number(session.expiresAt || Date.now() + 3600 * 1000);
-  setStatus(session.scope ? `${t("host.status.connected")} (${session.scope})` : "host.status.connected");
+  refreshToken = refreshToken || localStorage.getItem("spotify_refresh_token") || "";
+  if (!refreshToken) return false;
+  const clientId = localStorage.getItem("spotify_client_id") || spotifyClientId();
+  const { response, token } = await spotifyToken({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: clientId
+  });
+  if (!response.ok || !token.access_token) return false;
+  saveToken(token);
+  setStatus("host.status.connected");
   return true;
 }
 
@@ -556,6 +596,44 @@ function playlistIdFromUrl(value) {
   return match?.[1] || "";
 }
 
+function normalizeSpotifyTrack(item) {
+  const track = item?.track || item?.item || item;
+  if (!track || track.type !== "track" || !track.uri) return null;
+  return {
+    name: track.name || "Cancion sin titulo",
+    uri: track.uri,
+    type: track.type,
+    duration_ms: Number(track.duration_ms || 0),
+    artists: Array.isArray(track.artists) ? track.artists.map(artist => ({ name: artist.name || "" })) : [],
+    album: {
+      images: Array.isArray(track.album?.images)
+        ? track.album.images.map(image => ({ url: image.url || "" })).filter(image => image.url)
+        : []
+    }
+  };
+}
+
+async function collectPlaylistTracks(playlistId) {
+  let url = `/playlists/${playlistId}/items?limit=50`;
+  const tracks = [];
+  const summary = { items: 0, playableTracks: 0, nonTracks: 0 };
+  while (url) {
+    const page = await spotify(url);
+    for (const item of page?.items || []) {
+      summary.items += 1;
+      const track = normalizeSpotifyTrack(item);
+      if (track) {
+        summary.playableTracks += 1;
+        tracks.push(track);
+      } else {
+        summary.nonTracks += 1;
+      }
+    }
+    url = page?.next ? page.next.replace("https://api.spotify.com/v1", "") : "";
+  }
+  return { tracks, summary };
+}
+
 async function loadPlaylist(playlistValue = "") {
   const source = playlistValue || elements.playlistUrl?.value || localStorage.getItem("spotify_playlist_url") || "";
   const id = playlistIdFromUrl(source);
@@ -563,23 +641,18 @@ async function loadPlaylist(playlistValue = "") {
     setStatus("host.status.chooseValidPlaylist");
     return;
   }
+  if (!await ensureSpotifyAccessToken("host.status.reconnectSpotify")) return;
   localStorage.setItem("spotify_playlist_url", `https://open.spotify.com/playlist/${id}`);
-  const response = await fetch(`/api/spotify-playlist?id=${encodeURIComponent(id)}`);
-  const playlist = await response.json().catch(() => ({ error: t("host.status.invalidServerResponse") }));
-  if (!response.ok) {
-    const endpoint = playlist.endpoint ? ` (${playlist.endpoint})` : "";
-    const attempts = playlist.attempts ? ` Intentos: ${playlist.attempts}.` : "";
-    const owner = playlist.owner?.id ? ` ${t("host.status.owner")}: ${playlist.owner.id}. ${t("host.status.yourUser")}: ${playlist.currentUserId || t("host.status.unknown")}.` : "";
-    throw new Error(`Spotify playlist ${response.status}: ${playlist.error || t("host.status.playlistForbidden")}.${attempts}${owner}${endpoint}`);
-  }
-  playlistTracks = playlist.tracks || [];
+  const playlist = await spotify(`/playlists/${id}?fields=name`);
+  const collected = await collectPlaylistTracks(id);
+  playlistTracks = collected.tracks || [];
   resetPlayedTracks();
   await api("/api/reset-match", { playlistName: playlist.name || "Playlist" });
-  if (!playlistTracks.length && playlist.summary) {
+  if (!playlistTracks.length && collected.summary) {
     setStatus("host.status.zeroSongs", {
-      items: playlist.summary.items,
-      tracks: playlist.summary.playableTracks,
-      nonTracks: playlist.summary.nonTracks
+      items: collected.summary.items,
+      tracks: collected.summary.playableTracks,
+      nonTracks: collected.summary.nonTracks
     });
     return;
   }
@@ -587,13 +660,27 @@ async function loadPlaylist(playlistValue = "") {
 }
 
 async function loadUserPlaylists() {
+  if (!await ensureSpotifyAccessToken("host.status.reconnectSpotify")) return;
   elements.playlistGrid.innerHTML = `<p class="muted">${t("host.status.loadingPlaylists")}</p>`;
-  const response = await fetch("/api/spotify-playlists");
-  const data = await response.json().catch(() => ({ error: t("host.status.invalidServerResponse") }));
-  if (!response.ok) {
-    throw new Error(`Spotify playlists ${response.status}: ${data.error || t("host.status.playlistsFailed")}`);
+  const profile = await spotify("/me");
+  const currentUserId = profile?.id || "";
+  const playlists = [];
+  let url = "/me/playlists?limit=50";
+  while (url && playlists.length < 100) {
+    const page = await spotify(url);
+    for (const item of page?.items || []) {
+      if (!item?.id || item.owner?.id !== currentUserId) continue;
+      playlists.push({
+        id: item.id,
+        name: item.name || "Playlist",
+        owner: item.owner?.display_name || item.owner?.id || "",
+        image: item.images?.[0]?.url || "",
+        tracks: Number(item.tracks?.total || 0)
+      });
+    }
+    url = page?.next ? page.next.replace("https://api.spotify.com/v1", "") : "";
   }
-  renderPlaylistPicker(data.playlists || []);
+  renderPlaylistPicker(playlists);
 }
 
 function renderPlaylistPicker(playlists) {
@@ -1178,8 +1265,8 @@ finishAuth()
   .then(async authResult => {
     const params = new URLSearchParams(location.search);
     if (authResult === "connected") hideWelcome({ remember: true });
-    const serverSession = await refreshSpotifyToken();
-    if (!serverSession && validToken()) setStatus("host.status.connected");
+    if (!validToken()) await refreshSpotifyToken();
+    if (validToken()) setStatus("host.status.connected");
     if (validToken()) {
       hideWelcome({ remember: true });
       sessionStorage.removeItem("spotify_auto_connect_attempted");
