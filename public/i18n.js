@@ -23,6 +23,8 @@ const translations = {
 
     "host.connectSpotify": "Conectar Spotify",
     "host.disconnectSpotify": "Desconectar",
+    "host.changeLanguage": "Cambiar idioma",
+    "host.enterGame": "Entrar al juego",
     "host.welcomeEyebrow": "Juego musical de fiesta",
     "host.welcomeTitle": "En Una Nota",
     "host.welcomeSubtitle": "Elige idioma y conecta Spotify para preparar la partida.",
@@ -178,6 +180,8 @@ const translations = {
 
     "host.connectSpotify": "Connect Spotify",
     "host.disconnectSpotify": "Disconnect",
+    "host.changeLanguage": "Change language",
+    "host.enterGame": "Enter game",
     "host.welcomeEyebrow": "Music party game",
     "host.welcomeTitle": "En Una Nota",
     "host.welcomeSubtitle": "Choose a language and connect Spotify to set up the game.",

@@ -4,6 +4,7 @@ const $ = selector => document.querySelector(selector);
 
 const DEFAULT_SPOTIFY_CLIENT_ID = "8791a946e68c476cac41c3d5023a86a7";
 const DEFAULT_CLIP_SECONDS = 10;
+const WELCOME_SEEN_KEY = "en_una_nota_welcome_seen";
 
 const elements = {
   welcomeScreen: $("#welcomeScreen"),
@@ -12,6 +13,8 @@ const elements = {
   playlistUrl: $("#playlistUrl"),
   roomId: $("#roomId"),
   connectSpotify: $("#connectSpotify"),
+  closeWelcome: $("#closeWelcome"),
+  changeLanguage: $("#changeLanguage"),
   activateScreenPlayer: $("#activateScreenPlayer"),
   disconnectSpotify: $("#disconnectSpotify"),
   loadPlaylist: $("#loadPlaylist"),
@@ -142,14 +145,31 @@ function setStatus(message, values = {}) {
   if (elements.welcomeStatus) elements.welcomeStatus.textContent = text;
 }
 
+function hasSeenWelcome() {
+  return localStorage.getItem(WELCOME_SEEN_KEY) === "1";
+}
+
+function rememberWelcomeSeen() {
+  localStorage.setItem(WELCOME_SEEN_KEY, "1");
+}
+
 function showWelcome() {
   elements.welcomeScreen?.classList.remove("hidden");
   document.body.classList.add("welcome-active");
 }
 
-function hideWelcome() {
+function hideWelcome({ remember = false } = {}) {
+  if (remember) rememberWelcomeSeen();
   elements.welcomeScreen?.classList.add("hidden");
   document.body.classList.remove("welcome-active");
+}
+
+function syncWelcomeForSession() {
+  if (hasSeenWelcome()) {
+    hideWelcome();
+  } else {
+    showWelcome();
+  }
 }
 
 function spotifyClientId() {
@@ -194,6 +214,7 @@ async function loadServerInfo() {
 }
 
 async function connectSpotify() {
+  rememberWelcomeSeen();
   if (location.hostname.endsWith(".onrender.com") && location.protocol !== "https:") {
     const url = canonicalHostUrl();
     location.replace(url.href);
@@ -239,13 +260,6 @@ async function disconnectSpotify() {
 async function forgetSpotifySessionOnFreshLoad() {
   const params = new URLSearchParams(location.search);
   if (params.get("spotify") || params.get("code") || params.get("error") || params.get("connect") === "spotify") return;
-  await fetch("/api/spotify-logout", { method: "POST" }).catch(() => {});
-  accessToken = "";
-  refreshToken = "";
-  tokenExpiresAt = 0;
-  spotifyDeviceId = "";
-  activePlaybackDeviceId = "";
-  setStatus("host.status.spotifyNotConnected");
 }
 
 function saveToken(token) {
@@ -1118,11 +1132,13 @@ function refreshLanguage() {
 
 initLanguageControls(refreshLanguage);
 refreshLanguage();
-showWelcome();
+syncWelcomeForSession();
 
-elements.connectSpotify.addEventListener("click", showRulesBeforeConnect);
+elements.connectSpotify?.addEventListener("click", showRulesBeforeConnect);
+elements.closeWelcome?.addEventListener("click", () => hideWelcome({ remember: true }));
+elements.changeLanguage?.addEventListener("click", showWelcome);
 elements.activateScreenPlayer?.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || t("host.status.activateScreenFailed"))));
-elements.disconnectSpotify.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || t("host.status.disconnectFailed"))));
+elements.disconnectSpotify?.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || t("host.status.disconnectFailed"))));
 elements.loadPlaylist?.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
 elements.refreshPlaylists.addEventListener("click", () => loadUserPlaylists().catch(error => setStatus(error.message)));
 elements.playRound.addEventListener("click", () => playRound().catch(error => setStatus(error.message)));
@@ -1171,11 +1187,11 @@ forgetSpotifySessionOnFreshLoad()
   .then(() => finishAuth())
   .then(async authResult => {
     const params = new URLSearchParams(location.search);
-    if (authResult === "connected") hideWelcome();
-    const serverSession = authResult === "connected" ? await refreshSpotifyToken() : false;
+    if (authResult === "connected") hideWelcome({ remember: true });
+    const serverSession = await refreshSpotifyToken();
     if (!serverSession && validToken()) setStatus("host.status.connected");
     if (validToken()) {
-      hideWelcome();
+      hideWelcome({ remember: true });
       sessionStorage.removeItem("spotify_auto_connect_attempted");
       loadUserPlaylists().catch(error => setStatus(error.message));
       activateScreenPlayer().catch(() => setStatus("host.status.reactivatePlayer"));
@@ -1184,11 +1200,11 @@ forgetSpotifySessionOnFreshLoad()
       history.replaceState({}, "", location.pathname);
       await connectSpotify();
     } else {
-      showWelcome();
+      syncWelcomeForSession();
     }
   })
   .catch(error => {
-    showWelcome();
+    syncWelcomeForSession();
     setStatus(error.message);
   });
 updateJoinUrl();

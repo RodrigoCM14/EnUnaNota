@@ -21,7 +21,10 @@
             <button type="button" data-lang-choice="en"><span aria-hidden="true">🇺🇸</span><span data-i18n="common.english">English</span></button>
           </div>
         </div>
-        <button id="connectSpotify" class="primary welcome-connect" data-i18n="host.connectSpotify">Conectar Spotify</button>
+        <div class="welcome-actions">
+          <button id="connectSpotify" class="primary welcome-connect" data-i18n="host.connectSpotify">Conectar Spotify</button>
+          <button id="closeWelcome" type="button" data-i18n="host.enterGame">Entrar al juego</button>
+        </div>
         <p id="welcomeStatus" class="welcome-status" data-i18n="host.welcomeSpotifyHint">Necesitas Spotify Premium para reproducir desde esta pantalla.</p>
       </div>
     </section>
@@ -42,6 +45,7 @@
             <div class="status disconnected" id="spotifyStatus" title="Spotify sin conectar" aria-label="Spotify sin conectar" data-i18n-title="common.spotifyDisconnected" data-i18n-aria-label="common.spotifyDisconnected">&#10005;</div>
             <span id="spotifyStatusText" data-i18n="common.spotifyDisconnected">Spotify sin conectar</span>
           </div>
+          <button id="changeLanguage" type="button" data-i18n="host.changeLanguage">Cambiar idioma</button>
           <button id="disconnectSpotify" type="button" data-i18n="host.disconnectSpotify">Desconectar</button>
         </div>
       </section>

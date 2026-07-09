@@ -232,8 +232,14 @@ h2 {
   text-transform: uppercase;
 }
 
-.welcome-connect {
+.welcome-actions {
   width: min(100%, 340px);
+  display: grid;
+  gap: 10px;
+}
+
+.welcome-connect {
+  width: 100%;
 }
 
 .welcome-status {
