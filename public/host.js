@@ -30,7 +30,7 @@ const elements = {
   disconnectSpotify: $("#disconnectSpotify"),
   loadPlaylist: $("#loadPlaylist"),
   refreshPlaylists: $("#refreshPlaylists"),
-  playlistSelect: $("#playlistSelect"),
+  playlistGrid: $("#playlistGrid"),
   playRound: $("#playRound"),
   replayRound: $("#replayRound"),
   revealAnswer: $("#revealAnswer"),
@@ -708,7 +708,7 @@ async function loadPlaylist(playlistValue = "") {
   const collected = await collectPlaylistTracks(id);
   playlistTracks = collected.tracks || [];
   resetPlayedTracks();
-  await api("/api/reset-match", { playlistName: playlist.name || "Playlist" });
+  await api("/api/reset-match", { playlistName: playlist.name || "Playlist", playlistId: id });
   if (!playlistTracks.length && collected.summary) {
     setStatus("host.status.zeroSongs", {
       items: collected.summary.items,
@@ -722,8 +722,7 @@ async function loadPlaylist(playlistValue = "") {
 
 async function loadUserPlaylists() {
   if (!await ensureSpotifyAccessToken("host.status.reconnectSpotify")) return;
-  elements.playlistSelect.disabled = true;
-  elements.playlistSelect.innerHTML = `<option value="">${t("host.status.loadingPlaylists")}</option>`;
+  elements.playlistGrid.innerHTML = `<p class="muted">${t("host.status.loadingPlaylists")}</p>`;
   const profile = await spotify("/me");
   const currentUserId = profile?.id || "";
   const playlists = [];
@@ -743,28 +742,28 @@ async function loadUserPlaylists() {
     url = page?.next ? page.next.replace("https://api.spotify.com/v1", "") : "";
   }
   renderPlaylistPicker(playlists);
+  await api("/api/playlist-options", {
+    playlists: playlists.map(({ id, name, tracks }) => ({ id, name, tracks }))
+  });
 }
 
 function renderPlaylistPicker(playlists) {
-  elements.playlistSelect.innerHTML = "";
+  elements.playlistGrid.innerHTML = "";
   if (!playlists.length) {
-    elements.playlistSelect.disabled = true;
-    elements.playlistSelect.innerHTML = `<option value="">${t("host.status.noPlaylists")}</option>`;
+    elements.playlistGrid.innerHTML = `<p class="muted">${t("host.status.noPlaylists")}</p>`;
     return;
   }
-  const currentId = playlistIdFromUrl(localStorage.getItem("spotify_playlist_url") || "");
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = t("host.selectPlaylist");
-  elements.playlistSelect.append(placeholder);
   for (const playlist of playlists) {
-    const option = document.createElement("option");
-    option.value = playlist.id;
-    option.textContent = `${playlist.name} (${playlist.tracks})`;
-    option.selected = playlist.id === currentId;
-    elements.playlistSelect.append(option);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "playlist-card";
+    button.dataset.playlistId = playlist.id;
+    const image = playlist.image
+      ? `<img src="${playlist.image}" alt="">`
+      : `<div class="playlist-cover-placeholder"></div>`;
+    button.innerHTML = `${image}<span>${playlist.name}</span>`;
+    elements.playlistGrid.append(button);
   }
-  elements.playlistSelect.disabled = false;
 }
 
 async function choosePlaylist(playlistId) {
@@ -1033,7 +1032,7 @@ async function continueMatch() {
 function chooseAnotherPlaylist() {
   closeWinnerModal();
   document.querySelector(".setup-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  elements.playlistSelect?.focus();
+  elements.refreshPlaylists?.focus();
   setStatus("host.status.choosePlaylistRestart");
 }
 
@@ -1120,6 +1119,7 @@ async function processHostCommand(command) {
   if (action === "clear-buzzes") await api("/api/clear-buzzes");
   if (action === "continue-match") await continueMatch();
   if (action === "choose-playlist") chooseAnotherPlaylist();
+  if (action === "select-playlist" && command.target) await choosePlaylist(command.target);
   if (action === "reset-game") {
     resetPlayedTracks();
     await api("/api/reset");
@@ -1316,9 +1316,10 @@ elements.buzzList.addEventListener("click", event => {
   if (!button) return;
   scorePlayer(button.dataset.player, Number(button.dataset.score)).catch(error => setStatus(error.message));
 });
-elements.playlistSelect?.addEventListener("change", event => {
-  if (!event.target.value) return;
-  choosePlaylist(event.target.value).catch(error => setStatus(error.message));
+elements.playlistGrid.addEventListener("click", event => {
+  const button = event.target.closest("button[data-playlist-id]");
+  if (!button) return;
+  choosePlaylist(button.dataset.playlistId).catch(error => setStatus(error.message));
 });
 
 if (elements.clientId) {

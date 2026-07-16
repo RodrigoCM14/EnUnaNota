@@ -66,6 +66,8 @@ function getRoom(id = "default") {
       roundNumber: 0,
       clipSeconds: 10,
       playlistName: "",
+      playlistId: "",
+      playlistOptions: [],
       pointTarget: POINT_TARGET,
       goldenGoal: false,
       goldenVote: null,
@@ -87,6 +89,8 @@ function publicRoom(room) {
     roundNumber: room.roundNumber,
     clipSeconds: room.clipSeconds,
     playlistName: room.playlistName,
+    playlistId: room.playlistId || "",
+    playlistOptions: room.playlistOptions || [],
     pointTarget: room.pointTarget,
     goldenGoal: room.goldenGoal,
     goldenVote: goldenVoteSummary(room),
@@ -837,6 +841,25 @@ async function handleApi(req, res, pathname, searchParams) {
     room.winner = null;
     room.gameOver = false;
     if (typeof body.playlistName === "string") room.playlistName = body.playlistName.slice(0, 80);
+    if (typeof body.playlistId === "string") room.playlistId = body.playlistId.slice(0, 100);
+    touch(room);
+    sendJson(res, 200, { room: publicRoom(room) });
+    return;
+  }
+
+  if (pathname === "/api/playlist-options") {
+    if (!tokensMatch(room.hostToken, String(body.hostToken || ""))) {
+      return sendJson(res, 403, { error: "Clave admin incorrecta" });
+    }
+    if (!Array.isArray(body.playlists)) return sendJson(res, 400, { error: "Playlists invalidas" });
+    room.playlistOptions = body.playlists
+      .filter(item => /^[a-zA-Z0-9]{20,}$/.test(String(item?.id || "")))
+      .slice(0, 100)
+      .map(item => ({
+        id: String(item.id),
+        name: String(item.name || "Playlist").slice(0, 80),
+        tracks: Math.max(0, Number(item.tracks) || 0)
+      }));
     touch(room);
     sendJson(res, 200, { room: publicRoom(room) });
     return;
@@ -867,6 +890,8 @@ async function handleApi(req, res, pathname, searchParams) {
     room.round = null;
     room.roundNumber = 0;
     room.playlistName = "";
+    room.playlistId = "";
+    room.playlistOptions = [];
     room.goldenGoal = false;
     room.goldenVote = null;
     room.winner = null;

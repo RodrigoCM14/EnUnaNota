@@ -449,20 +449,39 @@ h2 {
   font-size: 0.85rem;
 }
 
-.playlist-select {
-  width: 100%;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-weight: 700;
+.playlist-grid {
+  display: grid;
+  gap: 8px;
+  max-height: 310px;
+  overflow: auto;
+  padding-right: 2px;
 }
 
-.playlist-select:disabled {
-  opacity: 0.7;
+.playlist-card {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: center;
+  padding: 8px;
+  text-align: left;
+}
+
+.playlist-card img,
+.playlist-cover-placeholder {
+  width: 48px;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #2b2f37;
+}
+
+.playlist-card span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 800;
 }
 
 .visually-hidden {
@@ -1084,6 +1103,28 @@ h2 {
   margin: 0;
   color: var(--accent);
   font-size: 1rem;
+}
+
+.admin-playlist-picker {
+  display: grid;
+  gap: 6px;
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.admin-playlist-picker select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.admin-playlist-picker select:disabled {
+  opacity: 0.7;
 }
 
 .admin-round-controls,

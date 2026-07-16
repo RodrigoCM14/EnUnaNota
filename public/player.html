@@ -49,6 +49,12 @@
         </section>
         <section id="adminControls" class="admin-controls hidden">
           <h2 data-i18n="player.adminControls">Controles host</h2>
+          <label class="admin-playlist-picker" for="adminPlaylistSelect">
+            <span data-i18n="player.playlistSelector">Cambiar playlist</span>
+            <select id="adminPlaylistSelect" disabled>
+              <option value="" data-i18n="player.playlistUnavailable">No hay playlists disponibles</option>
+            </select>
+          </label>
           <div class="admin-round-controls">
             <button data-host-action="play-round" data-i18n="host.play">Reproducir</button>
             <button data-host-action="replay-round" data-i18n="host.replay">Repetir</button>

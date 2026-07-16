@@ -19,6 +19,7 @@ const goldenVoteText = $("#goldenVoteText");
 const acceptGoldenVote = $("#acceptGoldenVote");
 const rejectGoldenVote = $("#rejectGoldenVote");
 const adminControls = $("#adminControls");
+const adminPlaylistSelect = $("#adminPlaylistSelect");
 const adminPlayerControls = $("#adminPlayerControls");
 const adminEndControls = $("#adminEndControls");
 const adminStatus = $("#adminStatus");
@@ -180,6 +181,7 @@ function render() {
 
 function renderAdminControls(players) {
   if (!isAdmin) return;
+  renderAdminPlaylistSelector();
   adminEndControls?.classList.toggle("hidden", !state?.gameOver);
   adminPlayerControls.innerHTML = "";
   const playersById = new Map(players.map(player => [player.id, player]));
@@ -199,6 +201,32 @@ function renderAdminControls(players) {
   if (!adminPlayerControls.children.length) {
     adminPlayerControls.innerHTML = `<p class="muted">${t("player.waitingBuzzOrder")}</p>`;
   }
+}
+
+function renderAdminPlaylistSelector() {
+  if (!adminPlaylistSelect) return;
+  const options = Array.isArray(state?.playlistOptions) ? state.playlistOptions : [];
+  adminPlaylistSelect.innerHTML = "";
+  if (!options.length) {
+    adminPlaylistSelect.disabled = true;
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = t("player.playlistUnavailable");
+    adminPlaylistSelect.append(option);
+    return;
+  }
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = t("player.selectPlaylist");
+  adminPlaylistSelect.append(placeholder);
+  for (const playlist of options) {
+    const option = document.createElement("option");
+    option.value = playlist.id;
+    option.textContent = `${playlist.name} (${playlist.tracks || 0})`;
+    option.selected = playlist.id === state?.playlistId;
+    adminPlaylistSelect.append(option);
+  }
+  adminPlaylistSelect.disabled = false;
 }
 
 function refreshLanguage() {
@@ -253,4 +281,9 @@ adminControls.addEventListener("click", event => {
       delta: Number(scoreButton.dataset.delta)
     });
   }
+});
+adminPlaylistSelect?.addEventListener("change", event => {
+  const playlistId = event.target.value;
+  if (!playlistId) return;
+  hostCommand("select-playlist", { target: playlistId });
 });
