@@ -33,13 +33,14 @@ function redirectLocalhostToLoopback() {
 
 if (redirectLocalhostToLoopback()) await new Promise(() => {});
 
-let playerId = localStorage.getItem("en_una_nota_player_id") || crypto.randomUUID();
-const roomId = new URLSearchParams(location.search).get("room") || localStorage.getItem("en_una_nota_room") || "default";
+const roomId = new URLSearchParams(location.search).get("room") || "";
+const playerStorageKey = `en_una_nota_player_id_${roomId}`;
+let playerId = localStorage.getItem(playerStorageKey) || crypto.randomUUID();
 let eventSource = null;
 let state = null;
 let isAdmin = false;
 
-localStorage.setItem("en_una_nota_player_id", playerId);
+localStorage.setItem(playerStorageKey, playerId);
 playerName.value = localStorage.getItem("en_una_nota_name") || "";
 
 function room() {
@@ -58,6 +59,10 @@ async function join() {
   const name = playerName.value.trim();
   const typedAdminKey = adminKey.value.trim();
   joinError.textContent = "";
+  if (!roomId) {
+    joinError.textContent = t("player.roomRequired");
+    return;
+  }
   if (!name) {
     playerName.focus();
     return;

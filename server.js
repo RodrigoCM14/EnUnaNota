@@ -24,6 +24,27 @@ const clients = new Map();
 const spotifyAuthStates = new Map();
 const spotifySessions = new Map();
 const oauthEvents = [];
+const ROOM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function createRoomId() {
+  let id = "";
+  do {
+    const bytes = crypto.randomBytes(6);
+    id = Array.from(bytes, byte => ROOM_ALPHABET[byte % ROOM_ALPHABET.length]).join("");
+  } while (rooms.has(id));
+  return id;
+}
+
+function createHostToken() {
+  return crypto.randomBytes(24).toString("hex");
+}
+
+function tokensMatch(expected, received) {
+  if (!expected || !received) return false;
+  const expectedBuffer = Buffer.from(String(expected));
+  const receivedBuffer = Buffer.from(String(received));
+  return expectedBuffer.length === receivedBuffer.length && crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
+}
 
 function logOAuth(event, details = {}) {
   oauthEvents.unshift({
@@ -38,6 +59,7 @@ function getRoom(id = "default") {
   if (!rooms.has(id)) {
     rooms.set(id, {
       id,
+      hostToken: createHostToken(),
       players: {},
       buzzes: [],
       round: null,
@@ -72,6 +94,15 @@ function publicRoom(room) {
     gameOver: room.gameOver,
     hostCommand: room.hostCommand,
     updatedAt: room.updatedAt
+  };
+}
+
+function sessionResponse(room, resumed = false) {
+  return {
+    room: publicRoom(room),
+    roomId: room.id,
+    hostToken: room.hostToken,
+    resumed
   };
 }
 
@@ -474,6 +505,20 @@ async function finishSpotifyLogin(req, res, searchParams) {
 }
 
 async function handleApi(req, res, pathname, searchParams) {
+  if (req.method === "POST" && pathname === "/api/session") {
+    const body = await readBody(req);
+    const requestedRoomId = String(body.roomId || "").trim().toUpperCase();
+    const requestedHostToken = String(body.hostToken || "");
+    const existingRoom = requestedRoomId ? rooms.get(requestedRoomId) : null;
+    if (existingRoom && tokensMatch(existingRoom.hostToken, requestedHostToken)) {
+      sendJson(res, 200, sessionResponse(existingRoom, true));
+      return;
+    }
+    const room = getRoom(createRoomId());
+    sendJson(res, 201, sessionResponse(room));
+    return;
+  }
+
   const roomId = searchParams.get("room") || "default";
   const room = getRoom(roomId);
 
@@ -712,8 +757,11 @@ async function handleApi(req, res, pathname, searchParams) {
 
   if (pathname === "/api/host-command") {
     const adminKey = String(body.adminKey || "");
+    const hostToken = String(body.hostToken || "");
     const action = String(body.action || "");
-    if (adminKey !== "2312") return sendJson(res, 403, { error: "Clave admin incorrecta" });
+    if (adminKey !== "2312" && !tokensMatch(room.hostToken, hostToken)) {
+      return sendJson(res, 403, { error: "Clave admin incorrecta" });
+    }
     if (!action) return sendJson(res, 400, { error: "Control invalido" });
     room.hostCommand = {
       id: crypto.randomUUID(),

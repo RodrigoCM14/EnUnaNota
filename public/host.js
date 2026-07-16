@@ -5,6 +5,8 @@ const $ = selector => document.querySelector(selector);
 const DEFAULT_SPOTIFY_CLIENT_ID = "8791a946e68c476cac41c3d5023a86a7";
 const DEFAULT_CLIP_SECONDS = 10;
 const WELCOME_SEEN_KEY = "en_una_nota_welcome_seen";
+const ROOM_STORAGE_KEY = "room_id";
+const HOST_TOKEN_STORAGE_KEY = "en_una_nota_host_token";
 const SPOTIFY_SCOPES = [
   "streaming",
   "user-read-email",
@@ -42,6 +44,8 @@ const elements = {
   spotifyStatusText: $("#spotifyStatusText"),
   joinUrl: $("#joinUrl"),
   joinQr: $("#joinQr"),
+  sessionCode: $("#sessionCode"),
+  newSession: $("#newSession"),
   playlistBanner: $("#playlistBanner"),
   answerPanel: $("#answerPanel"),
   reviewPopup: $("#reviewPopup"),
@@ -90,6 +94,7 @@ let finalSongWinnerId = "";
 let manualTimerIntervalId = null;
 let manualTimerTimeoutId = null;
 let lastStatus = { message: "common.spotifyDisconnected", values: {} };
+let hostToken = localStorage.getItem(HOST_TOKEN_STORAGE_KEY) || "";
 const PLAYBACK_START_DELAY_MS = 1000;
 const CONTINUE_TOTAL_MS = 30_000;
 
@@ -118,7 +123,7 @@ function api(path, body) {
   return fetch(`${path}?room=${encodeURIComponent(room())}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body || {})
+    body: JSON.stringify({ ...(body || {}), hostToken })
   }).then(async response => {
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.error) throw new Error(data.error || `Error ${response.status}`);
@@ -128,6 +133,61 @@ function api(path, body) {
     }
     return data;
   });
+}
+
+function applyHostSession(session) {
+  hostToken = String(session.hostToken || "");
+  localStorage.setItem(HOST_TOKEN_STORAGE_KEY, hostToken);
+  localStorage.setItem(ROOM_STORAGE_KEY, session.roomId);
+  if (elements.roomId) elements.roomId.value = session.roomId;
+  if (elements.sessionCode) elements.sessionCode.textContent = session.roomId;
+  state = session.room || state;
+  updateJoinUrl();
+  if (state) render();
+}
+
+async function requestHostSession(body = {}) {
+  const response = await fetch("/api/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.error || !result.roomId || !result.hostToken) {
+    throw new Error(result.error || "No se pudo crear la sesion");
+  }
+  applyHostSession(result);
+  return result;
+}
+
+async function ensureHostSession() {
+  const savedRoomId = localStorage.getItem(ROOM_STORAGE_KEY) || "";
+  const savedHostToken = localStorage.getItem(HOST_TOKEN_STORAGE_KEY) || "";
+  if (savedRoomId && savedHostToken) {
+    try {
+      await requestHostSession({ roomId: savedRoomId, hostToken: savedHostToken });
+      return;
+    } catch {
+      localStorage.removeItem(ROOM_STORAGE_KEY);
+      localStorage.removeItem(HOST_TOKEN_STORAGE_KEY);
+    }
+  }
+  await requestHostSession();
+}
+
+async function createNewSession() {
+  if (!confirm(t("host.status.newSessionConfirm"))) return;
+  await requestHostSession();
+  playedTrackUris = new Set();
+  localStorage.removeItem("played_track_uris");
+  playlistTracks = [];
+  answerVisible = false;
+  lastWinnerId = "";
+  finalSongWinnerId = "";
+  if (elements.playlistUrl) elements.playlistUrl.value = "";
+  localStorage.removeItem("spotify_playlist_url");
+  connectEvents();
+  setStatus("host.status.newSessionCreated");
 }
 
 function localized(message, values = {}) {
@@ -1243,7 +1303,7 @@ elements.resetGame.addEventListener("click", () => {
   api("/api/reset");
 });
 elements.roomId?.addEventListener("change", () => {
-  localStorage.setItem("room_id", room());
+  localStorage.setItem(ROOM_STORAGE_KEY, room());
   updateJoinUrl();
   connectEvents();
 });
@@ -1263,10 +1323,14 @@ if (elements.clientId) {
   localStorage.setItem("spotify_client_id", elements.clientId.value);
 }
 if (elements.playlistUrl) elements.playlistUrl.value = localStorage.getItem("spotify_playlist_url") || "";
-if (elements.roomId) {
-  elements.roomId.value = localStorage.getItem("room_id") || new URLSearchParams(location.search).get("room") || "default";
-}
-finishAuth()
+elements.newSession?.addEventListener("click", () => createNewSession().catch(error => setStatus(error.message)));
+
+async function boot() {
+  if (elements.roomId) {
+    elements.roomId.value = localStorage.getItem(ROOM_STORAGE_KEY) || new URLSearchParams(location.search).get("room") || "";
+  }
+  await ensureHostSession();
+  await finishAuth()
   .then(async authResult => {
     const params = new URLSearchParams(location.search);
     if (authResult === "connected") hideWelcome({ remember: true });
@@ -1285,11 +1349,17 @@ finishAuth()
       syncWelcomeForSession();
     }
   })
-  .catch(error => {
-    syncWelcomeForSession();
-    setStatus(error.message);
-  });
-updateJoinUrl();
-loadServerInfo().catch(() => {});
-connectEvents();
+    .catch(error => {
+      syncWelcomeForSession();
+      setStatus(error.message);
+    });
+  updateJoinUrl();
+  loadServerInfo().catch(() => {});
+  connectEvents();
+}
+
+boot().catch(error => {
+  syncWelcomeForSession();
+  setStatus(error.message);
+});
 window.setInterval(updateRoundMeter, 250);
