@@ -759,7 +759,8 @@ async function handleApi(req, res, pathname, searchParams) {
     const adminKey = String(body.adminKey || "");
     const hostToken = String(body.hostToken || "");
     const action = String(body.action || "");
-    if (adminKey !== "2312" && !tokensMatch(room.hostToken, hostToken)) {
+    const roomKeyMatches = adminKey.toUpperCase() === room.id.toUpperCase();
+    if (!roomKeyMatches && !tokensMatch(room.hostToken, hostToken)) {
       return sendJson(res, 403, { error: "Clave admin incorrecta" });
     }
     if (!action) return sendJson(res, 400, { error: "Control invalido" });

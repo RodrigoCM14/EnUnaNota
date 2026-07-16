@@ -67,12 +67,14 @@ async function join() {
     playerName.focus();
     return;
   }
-  if (typedAdminKey && typedAdminKey !== "2312") {
+  const normalizedHostKey = typedAdminKey.toUpperCase();
+  const normalizedRoomId = roomId.toUpperCase();
+  if (typedAdminKey && normalizedHostKey !== normalizedRoomId) {
     joinError.textContent = t("player.wrongHostKey");
     adminKey.focus();
     return;
   }
-  isAdmin = typedAdminKey === "2312";
+  isAdmin = Boolean(typedAdminKey) && normalizedHostKey === normalizedRoomId;
   localStorage.setItem("en_una_nota_name", name);
   localStorage.setItem("en_una_nota_room", room());
   const result = await api("/api/join", { id: playerId, name });
@@ -87,14 +89,14 @@ async function join() {
   buzzerScreen.hidden = false;
   buzzerScreen.removeAttribute("aria-hidden");
   adminControls.classList.toggle("hidden", !isAdmin);
-  hello.textContent = name;
+  hello.textContent = isAdmin ? `${t("player.hostLabel")} - ${roomId.toUpperCase()}` : name;
   connectEvents();
 }
 
 async function hostCommand(action, extra = {}) {
   if (!isAdmin) return;
   adminStatus.textContent = t("player.sendingControl");
-  const result = await api("/api/host-command", { adminKey: "2312", action, ...extra });
+  const result = await api("/api/host-command", { adminKey: roomId, action, ...extra });
   if (result.error) {
     adminStatus.textContent = translateServerMessage(result.error);
     return;

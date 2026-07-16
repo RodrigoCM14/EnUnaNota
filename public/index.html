@@ -62,12 +62,12 @@
           <input id="roomId" type="hidden" value="default">
           <div class="playlist-picker">
             <div class="picker-head">
-              <span data-i18n="host.yourPlaylists">Tus playlists</span>
+              <label for="playlistSelect" data-i18n="host.yourPlaylists">Tus playlists</label>
               <button id="refreshPlaylists" type="button" data-i18n="host.refresh">Actualizar</button>
             </div>
-            <div id="playlistGrid" class="playlist-grid">
-              <p class="muted" data-i18n="host.connectToSeePlaylists">Conecta Spotify para ver tus playlists.</p>
-            </div>
+            <select id="playlistSelect" class="playlist-select" disabled>
+              <option value="" data-i18n="host.connectToSeePlaylists">Conecta Spotify para ver tus playlists.</option>
+            </select>
           </div>
           <strong id="joinUrl" class="visually-hidden" data-i18n="host.openPlayer">Abre /player</strong>
         </aside>

@@ -30,7 +30,7 @@ const elements = {
   disconnectSpotify: $("#disconnectSpotify"),
   loadPlaylist: $("#loadPlaylist"),
   refreshPlaylists: $("#refreshPlaylists"),
-  playlistGrid: $("#playlistGrid"),
+  playlistSelect: $("#playlistSelect"),
   playRound: $("#playRound"),
   replayRound: $("#replayRound"),
   revealAnswer: $("#revealAnswer"),
@@ -722,7 +722,8 @@ async function loadPlaylist(playlistValue = "") {
 
 async function loadUserPlaylists() {
   if (!await ensureSpotifyAccessToken("host.status.reconnectSpotify")) return;
-  elements.playlistGrid.innerHTML = `<p class="muted">${t("host.status.loadingPlaylists")}</p>`;
+  elements.playlistSelect.disabled = true;
+  elements.playlistSelect.innerHTML = `<option value="">${t("host.status.loadingPlaylists")}</option>`;
   const profile = await spotify("/me");
   const currentUserId = profile?.id || "";
   const playlists = [];
@@ -745,22 +746,25 @@ async function loadUserPlaylists() {
 }
 
 function renderPlaylistPicker(playlists) {
-  elements.playlistGrid.innerHTML = "";
+  elements.playlistSelect.innerHTML = "";
   if (!playlists.length) {
-    elements.playlistGrid.innerHTML = `<p class="muted">${t("host.status.noPlaylists")}</p>`;
+    elements.playlistSelect.disabled = true;
+    elements.playlistSelect.innerHTML = `<option value="">${t("host.status.noPlaylists")}</option>`;
     return;
   }
+  const currentId = playlistIdFromUrl(localStorage.getItem("spotify_playlist_url") || "");
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = t("host.selectPlaylist");
+  elements.playlistSelect.append(placeholder);
   for (const playlist of playlists) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "playlist-card";
-    button.dataset.playlistId = playlist.id;
-    const image = playlist.image
-      ? `<img src="${playlist.image}" alt="">`
-      : `<div class="playlist-cover-placeholder"></div>`;
-    button.innerHTML = `${image}<span>${playlist.name}</span>`;
-    elements.playlistGrid.append(button);
+    const option = document.createElement("option");
+    option.value = playlist.id;
+    option.textContent = `${playlist.name} (${playlist.tracks})`;
+    option.selected = playlist.id === currentId;
+    elements.playlistSelect.append(option);
   }
+  elements.playlistSelect.disabled = false;
 }
 
 async function choosePlaylist(playlistId) {
@@ -1029,7 +1033,7 @@ async function continueMatch() {
 function chooseAnotherPlaylist() {
   closeWinnerModal();
   document.querySelector(".setup-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  elements.refreshPlaylists?.focus();
+  elements.playlistSelect?.focus();
   setStatus("host.status.choosePlaylistRestart");
 }
 
@@ -1312,10 +1316,9 @@ elements.buzzList.addEventListener("click", event => {
   if (!button) return;
   scorePlayer(button.dataset.player, Number(button.dataset.score)).catch(error => setStatus(error.message));
 });
-elements.playlistGrid.addEventListener("click", event => {
-  const button = event.target.closest("button[data-playlist-id]");
-  if (!button) return;
-  choosePlaylist(button.dataset.playlistId).catch(error => setStatus(error.message));
+elements.playlistSelect?.addEventListener("change", event => {
+  if (!event.target.value) return;
+  choosePlaylist(event.target.value).catch(error => setStatus(error.message));
 });
 
 if (elements.clientId) {
