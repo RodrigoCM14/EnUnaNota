@@ -76,7 +76,11 @@ async function join() {
     return;
   }
   joinScreen.classList.add("hidden");
+  joinScreen.hidden = true;
+  joinScreen.setAttribute("aria-hidden", "true");
   buzzerScreen.classList.remove("hidden");
+  buzzerScreen.hidden = false;
+  buzzerScreen.removeAttribute("aria-hidden");
   adminControls.classList.toggle("hidden", !isAdmin);
   hello.textContent = name;
   connectEvents();

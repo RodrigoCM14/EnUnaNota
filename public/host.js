@@ -44,6 +44,7 @@ const elements = {
   joinQr: $("#joinQr"),
   playlistBanner: $("#playlistBanner"),
   answerPanel: $("#answerPanel"),
+  reviewPopup: $("#reviewPopup"),
   cover: $("#cover"),
   roundLabel: $("#roundLabel"),
   trackTitle: $("#trackTitle"),
@@ -829,7 +830,7 @@ async function replayRound() {
 }
 
 async function revealAnswer() {
-  answerVisible = true;
+  answerVisible = false;
   if (state?.round) {
     await stopPlaybackNow();
     await api("/api/round", {
@@ -1126,7 +1127,8 @@ function updateRoundMeter() {
 function render() {
   if (!state) return;
   const round = state.round;
-  const showAnswer = answerVisible || round?.revealed;
+  const isHostReviewing = Boolean(round?.hostReviewing);
+  const showAnswer = !isHostReviewing && (answerVisible || round?.revealed);
   const hasCover = Boolean(showAnswer && round?.track?.image);
   const roundNumber = state.roundNumber ? `${t("host.status.round")} ${state.roundNumber}` : t("host.status.roundEmpty");
   const playlistName = showAnswer && round ? state.playlistName || t("common.playlist") : t("common.playlist");
@@ -1139,6 +1141,7 @@ function render() {
   elements.trackArtist.textContent = showAnswer && round ? round.track.artists : t("common.artist");
   updateRoundMeter();
   renderLocalizedGoldenVote();
+  elements.reviewPopup?.classList.toggle("hidden", !isHostReviewing);
 
   elements.buzzList.innerHTML = "";
   state.buzzes.forEach((buzz, index) => {
