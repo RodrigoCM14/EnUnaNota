@@ -138,6 +138,8 @@ function render() {
   buzzButton.textContent = roundActive ? "BUZZ" : t("player.readyButton");
   roundState.textContent = state.round?.revealed
     ? `${state.round.track.name} - ${state.round.track.artists}`
+    : state.round?.hostReviewing
+      ? t("player.hostReviewing")
     : roundActive
       ? t("player.activeRound")
       : t("player.noActiveRound");
@@ -149,6 +151,8 @@ function render() {
     buzzState.textContent = t("player.missedRound");
   } else if (roundActive) {
     buzzState.textContent = t("player.pressWhenKnow");
+  } else if (state.round?.hostReviewing) {
+    buzzState.textContent = t("player.hostReviewingDetail");
   } else if (state.round?.revealed) {
     buzzState.textContent = t("player.answerRevealed");
   } else {

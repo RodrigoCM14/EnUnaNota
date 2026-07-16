@@ -684,6 +684,7 @@ async function handleApi(req, res, pathname, searchParams) {
     player.score += delta;
     if (delta > 0 && room.round) {
       room.round.revealed = true;
+      room.round.hostReviewing = false;
       room.round.stoppedAt = room.round.stoppedAt || Date.now();
     }
     if (delta > 0 && !room.winner && (room.goldenGoal || player.score >= room.pointTarget)) {

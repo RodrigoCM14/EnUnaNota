@@ -758,6 +758,7 @@ async function playRound() {
       startedAt,
       stoppedAt: null,
       revealed: false,
+      hostReviewing: false,
       acceptBuzzes: false,
       eliminatedPlayerIds: []
     }
@@ -773,7 +774,7 @@ async function playRound() {
     clipSeconds,
     playlistName: state?.playlistName || "",
     clearBuzzes: false,
-    round: { ...state.round, startedAt: Date.now(), stoppedAt: null, acceptBuzzes: true }
+    round: { ...state.round, startedAt: Date.now(), stoppedAt: null, hostReviewing: false, acceptBuzzes: true }
   });
   schedulePlaybackPause(clipSeconds);
 }
@@ -809,7 +810,7 @@ async function replayRound() {
     clipSeconds,
     playlistName: state?.playlistName || "",
     clearBuzzes: false,
-    round: { ...round, startedAt, stoppedAt: null, revealed: false, acceptBuzzes: false }
+    round: { ...round, startedAt, stoppedAt: null, revealed: false, hostReviewing: false, acceptBuzzes: false }
   });
   await playRoundBeep().catch(() => {});
   await wait(PLAYBACK_START_DELAY_MS);
@@ -821,7 +822,7 @@ async function replayRound() {
     clipSeconds,
     playlistName: state?.playlistName || "",
     clearBuzzes: false,
-    round: { ...state.round, startedAt: Date.now(), stoppedAt: null, acceptBuzzes: true }
+    round: { ...state.round, startedAt: Date.now(), stoppedAt: null, hostReviewing: false, acceptBuzzes: true }
   });
   schedulePlaybackPause(clipSeconds);
   setStatus("host.status.fragmentRepeated");
@@ -832,7 +833,7 @@ async function revealAnswer() {
   if (state?.round) {
     await stopPlaybackNow();
     await api("/api/round", {
-      round: { ...state.round, stoppedAt: state.round.stoppedAt || Date.now(), acceptBuzzes: false },
+      round: { ...state.round, stoppedAt: state.round.stoppedAt || Date.now(), hostReviewing: true, acceptBuzzes: false },
       clipSeconds: Number(state.clipSeconds || DEFAULT_CLIP_SECONDS),
       playlistName: state.playlistName || "",
       clearBuzzes: false
@@ -944,6 +945,7 @@ async function playFullSong() {
 }
 
 async function scorePlayer(playerId, delta) {
+  stopManualTimer();
   if (delta > 0) await stopPlaybackNow();
   await api("/api/score", { playerId, delta });
 }
