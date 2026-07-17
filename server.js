@@ -900,6 +900,9 @@ async function handleApi(req, res, pathname, searchParams) {
   }
 
   if (pathname === "/api/round") {
+    if (!tokensMatch(room.hostToken, String(body.hostToken || ""))) {
+      return sendJson(res, 403, { error: "Host no disponible" });
+    }
     if (room.gameOver && body.round) return sendJson(res, 409, { error: "La partida termino. Continua o elige otra playlist." });
     if (room.goldenVote?.active && body.round) return sendJson(res, 409, { error: "Hay una votacion de Buzz de Oro activa" });
     if (body.incrementRound && body.round) room.roundNumber += 1;

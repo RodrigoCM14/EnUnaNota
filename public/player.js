@@ -176,13 +176,15 @@ function render() {
   buzzButton.classList.toggle("buzzed", buzzed);
   buzzButton.disabled = buzzed || !roundActive;
   buzzButton.textContent = roundActive ? "BUZZ" : t("player.readyButton");
-  roundState.textContent = state.round?.revealed
-    ? `${state.round.track.name} - ${state.round.track.artists}`
+  const canSeeAnswer = Boolean(state.round?.revealed || (state.round?.hostReviewing && isAdmin));
+  const track = state.round?.track;
+  roundState.textContent = canSeeAnswer && track
+    ? `${track.name} - ${track.artists}`
     : state.round?.hostReviewing
       ? t("player.hostReviewing")
-    : roundActive
-      ? t("player.activeRound")
-      : t("player.noActiveRound");
+      : roundActive
+        ? t("player.activeRound")
+        : t("player.noActiveRound");
   if (first) {
     buzzState.textContent = t("player.first");
   } else if (buzzed) {
