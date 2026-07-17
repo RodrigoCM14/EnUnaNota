@@ -346,11 +346,13 @@ const translations = {
 const serverMessages = {
   "Nombre requerido": { es: "Nombre requerido", en: "Name required" },
   "Ese nombre ya esta en uso": { es: "Ese nombre ya esta en uso", en: "That name is already in use" },
+  "Ya hay un host en esta sala": { es: "Ya hay un host en esta sala", en: "There is already a host in this room" },
   "Jugador no encontrado": { es: "Jugador no encontrado", en: "Player not found" },
   "No hay una ronda activa": { es: "No hay una ronda activa", en: "There is no active round" },
   "Ya fallaste esta ronda": { es: "Ya fallaste esta ronda", en: "You already missed this round" },
   "Puntaje invalido": { es: "Puntaje invalido", en: "Invalid score" },
   "Clave admin incorrecta": { es: "Clave admin incorrecta", en: "Incorrect admin key" },
+  "Host no disponible": { es: "El host ya no esta disponible", en: "The host is no longer available" },
   "Control invalido": { es: "Control invalido", en: "Invalid control" },
   "Buzz de Oro requiere un jugador con 9 puntos o mas": {
     es: "Buzz de Oro requiere un jugador con 9 puntos o mas",

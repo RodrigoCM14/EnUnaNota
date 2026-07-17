@@ -9,6 +9,7 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const PUBLIC_URL = process.env.PUBLIC_URL || "";
 const DEFAULT_SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || "8791a946e68c476cac41c3d5023a86a7";
 const POINT_TARGET = 10;
+const HOST_LEASE_MS = 45_000;
 const SPOTIFY_SCOPES = [
   "streaming",
   "user-read-email",
@@ -60,6 +61,8 @@ function getRoom(id = "default") {
     rooms.set(id, {
       id,
       hostToken: createHostToken(),
+      hostPlayerId: "",
+      hostLastSeen: 0,
       players: {},
       buzzes: [],
       round: null,
@@ -83,6 +86,7 @@ function getRoom(id = "default") {
 function publicRoom(room) {
   return {
     id: room.id,
+    hostPlayerId: room.hostPlayerId || "",
     players: Object.values(room.players).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)),
     buzzes: room.buzzes,
     round: room.round,
@@ -692,15 +696,28 @@ async function handleApi(req, res, pathname, searchParams) {
     const name = String(body.name || "").trim().slice(0, 24);
     if (!name) return sendJson(res, 400, { error: "Nombre requerido" });
     const id = body.id || crypto.randomUUID();
+    const wantsHost = Boolean(body.isHost);
     const normalizedName = name.toLocaleLowerCase();
     const duplicate = Object.values(room.players).find(player =>
       player.id !== id && player.name.trim().toLocaleLowerCase() === normalizedName
     );
     if (duplicate) return sendJson(res, 409, { error: "Ese nombre ya esta en uso" });
+    const currentHostActive = room.hostPlayerId && Date.now() - room.hostLastSeen <= HOST_LEASE_MS;
+    if (wantsHost && currentHostActive && room.hostPlayerId !== id) {
+      return sendJson(res, 409, { error: "Ya hay un host en esta sala" });
+    }
+    if (wantsHost) {
+      room.hostPlayerId = id;
+      room.hostLastSeen = Date.now();
+    }
     room.players[id] = room.players[id] || { id, name, score: 0, buzzedAt: null };
     room.players[id].name = name;
     touch(room);
-    sendJson(res, 200, { player: room.players[id], room: publicRoom(room) });
+    sendJson(res, 200, {
+      player: room.players[id],
+      isHost: wantsHost && room.hostPlayerId === id,
+      room: publicRoom(room)
+    });
     return;
   }
 
@@ -759,14 +776,31 @@ async function handleApi(req, res, pathname, searchParams) {
     return;
   }
 
+  if (pathname === "/api/host-heartbeat") {
+    const adminKey = String(body.adminKey || "");
+    const hostPlayerId = String(body.playerId || "");
+    const roomKeyMatches = adminKey.toUpperCase() === room.id.toUpperCase();
+    const hostMatches = room.hostPlayerId === hostPlayerId;
+    if (!roomKeyMatches || !hostMatches) {
+      return sendJson(res, 403, { error: "Host no disponible" });
+    }
+    room.hostLastSeen = Date.now();
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
   if (pathname === "/api/host-command") {
     const adminKey = String(body.adminKey || "");
     const hostToken = String(body.hostToken || "");
+    const hostPlayerId = String(body.hostPlayerId || "");
     const action = String(body.action || "");
     const roomKeyMatches = adminKey.toUpperCase() === room.id.toUpperCase();
-    if (!roomKeyMatches && !tokensMatch(room.hostToken, hostToken)) {
+    const desktopHost = tokensMatch(room.hostToken, hostToken);
+    const mobileHost = roomKeyMatches && room.hostPlayerId === hostPlayerId && Date.now() - room.hostLastSeen <= HOST_LEASE_MS;
+    if (!desktopHost && !mobileHost) {
       return sendJson(res, 403, { error: "Clave admin incorrecta" });
     }
+    if (mobileHost) room.hostLastSeen = Date.now();
     if (!action) return sendJson(res, 400, { error: "Control invalido" });
     room.hostCommand = {
       id: crypto.randomUUID(),
@@ -886,6 +920,8 @@ async function handleApi(req, res, pathname, searchParams) {
 
   if (pathname === "/api/reset") {
     room.players = {};
+    room.hostPlayerId = "";
+    room.hostLastSeen = 0;
     room.buzzes = [];
     room.round = null;
     room.roundNumber = 0;

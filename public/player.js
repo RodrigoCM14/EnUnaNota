@@ -40,6 +40,7 @@ let playerId = localStorage.getItem(playerStorageKey) || crypto.randomUUID();
 let eventSource = null;
 let state = null;
 let isAdmin = false;
+let hostHeartbeatId = null;
 
 localStorage.setItem(playerStorageKey, playerId);
 playerName.value = localStorage.getItem("en_una_nota_name") || "";
@@ -54,6 +55,28 @@ function api(path, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body || {})
   }).then(response => response.json());
+}
+
+function stopHostHeartbeat() {
+  if (hostHeartbeatId === null) return;
+  window.clearInterval(hostHeartbeatId);
+  hostHeartbeatId = null;
+}
+
+function startHostHeartbeat() {
+  stopHostHeartbeat();
+  hostHeartbeatId = window.setInterval(async () => {
+    const result = await api("/api/host-heartbeat", { adminKey: roomId, playerId });
+    if (result.error) revokeHostControls(result.error);
+  }, 15_000);
+}
+
+function revokeHostControls(message = "Host no disponible") {
+  isAdmin = false;
+  stopHostHeartbeat();
+  adminControls.classList.add("hidden");
+  hello.textContent = playerName.value.trim();
+  adminStatus.textContent = translateServerMessage(message);
 }
 
 async function join() {
@@ -75,14 +98,15 @@ async function join() {
     adminKey.focus();
     return;
   }
-  isAdmin = Boolean(typedAdminKey) && normalizedHostKey === normalizedRoomId;
+  const wantsHost = Boolean(typedAdminKey) && normalizedHostKey === normalizedRoomId;
   localStorage.setItem("en_una_nota_name", name);
   localStorage.setItem("en_una_nota_room", room());
-  const result = await api("/api/join", { id: playerId, name });
+  const result = await api("/api/join", { id: playerId, name, isHost: wantsHost });
   if (result.error) {
     joinError.textContent = translateServerMessage(result.error);
     return;
   }
+  isAdmin = Boolean(result.isHost);
   joinScreen.classList.add("hidden");
   joinScreen.hidden = true;
   joinScreen.setAttribute("aria-hidden", "true");
@@ -91,15 +115,19 @@ async function join() {
   buzzerScreen.removeAttribute("aria-hidden");
   adminControls.classList.toggle("hidden", !isAdmin);
   hello.textContent = isAdmin ? `${t("player.hostLabel")} - ${roomId.toUpperCase()}` : name;
+  if (isAdmin) startHostHeartbeat();
   connectEvents();
 }
 
 async function hostCommand(action, extra = {}) {
   if (!isAdmin) return;
   adminStatus.textContent = t("player.sendingControl");
-  const result = await api("/api/host-command", { adminKey: roomId, action, ...extra });
+  const result = await api("/api/host-command", { adminKey: roomId, hostPlayerId: playerId, action, ...extra });
   if (result.error) {
     adminStatus.textContent = translateServerMessage(result.error);
+    if (result.error === "Clave admin incorrecta" || result.error === "Host no disponible") {
+      revokeHostControls(result.error);
+    }
     return;
   }
   adminStatus.textContent = t("player.controlSent");
@@ -287,3 +315,5 @@ adminPlaylistSelect?.addEventListener("change", event => {
   if (!playlistId) return;
   hostCommand("select-playlist", { target: playlistId });
 });
+
+window.addEventListener("pagehide", stopHostHeartbeat);
