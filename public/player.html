@@ -55,10 +55,15 @@
               <option value="" data-i18n="player.playlistUnavailable">No hay playlists disponibles</option>
             </select>
           </label>
+          <div class="admin-spotify-controls">
+            <button type="button" data-host-action="connect-spotify" data-i18n="host.connectSpotify">Conectar Spotify</button>
+            <button type="button" data-host-action="refresh-playlists" data-i18n="host.refreshPlaylists">Actualizar playlists</button>
+          </div>
           <div class="admin-round-controls">
             <button data-host-action="play-round" data-i18n="host.play">Reproducir</button>
             <button data-host-action="replay-round" data-i18n="host.replay">Repetir</button>
             <button data-host-action="reveal-answer" data-i18n="host.reveal">Mostrar</button>
+            <button class="primary" data-host-action="reveal-answer-for-all" data-i18n="host.revealForAll">Mostrar para todos</button>
             <button data-host-action="continue-song" data-i18n="host.continue">Continuar</button>
             <button data-host-action="play-full-song" data-i18n="host.fullSong">Completa</button>
             <button data-host-action="timer-10" data-i18n="host.timer10">Timer 10s</button>

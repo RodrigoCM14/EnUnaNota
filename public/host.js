@@ -34,6 +34,7 @@ const elements = {
   playRound: $("#playRound"),
   replayRound: $("#replayRound"),
   revealAnswer: $("#revealAnswer"),
+  revealAnswerForAll: $("#revealAnswerForAll"),
   continueSong: $("#continueSong"),
   playFullSong: $("#playFullSong"),
   manualTimer: $("#manualTimer"),
@@ -909,6 +910,29 @@ async function revealAnswer() {
   }
 }
 
+async function revealAnswerForAll() {
+  answerVisible = false;
+  if (!state?.round) {
+    render();
+    setStatus("host.status.noAnswer");
+    return;
+  }
+  await stopPlaybackNow();
+  await api("/api/round", {
+    round: {
+      ...state.round,
+      stoppedAt: state.round.stoppedAt || Date.now(),
+      revealed: true,
+      hostReviewing: false,
+      acceptBuzzes: false
+    },
+    clipSeconds: Number(state.clipSeconds || DEFAULT_CLIP_SECONDS),
+    playlistName: state.playlistName || "",
+    clearBuzzes: false
+  });
+  setStatus("host.status.answerShownForAll");
+}
+
 async function pauseExtendedPlayback() {
   if (pausePlaybackTimeoutId) window.clearTimeout(pausePlaybackTimeoutId);
   pausePlaybackTimeoutId = null;
@@ -1058,10 +1082,10 @@ function startManualTimer(seconds = 10) {
 }
 
 function formatBuzzTime(buzz) {
-  if (Number.isFinite(Number(buzz.elapsedMs))) return `${(Number(buzz.elapsedMs) / 1000).toFixed(1)}s`;
+  if (Number.isFinite(Number(buzz.elapsedMs))) return `${(Number(buzz.elapsedMs) / 1000).toFixed(2)}s`;
   const startedAt = Number(state?.round?.startedAt || buzz.at);
   const elapsed = Math.max(0, Number(buzz.at || Date.now()) - startedAt);
-  return `${(elapsed / 1000).toFixed(1)}s`;
+  return `${(elapsed / 1000).toFixed(2)}s`;
 }
 
 function showWinnerModal(winner) {
@@ -1112,6 +1136,9 @@ async function processHostCommand(command) {
   if (action === "play-round") await playRound();
   if (action === "replay-round") await replayRound();
   if (action === "reveal-answer") await revealAnswer();
+  if (action === "reveal-answer-for-all") await revealAnswerForAll();
+  if (action === "connect-spotify") await connectSpotify();
+  if (action === "refresh-playlists") await loadUserPlaylists();
   if (action === "continue-song") await continueSong();
   if (action === "play-full-song") await playFullSong();
   if (action === "timer-10") startManualTimer(10);
@@ -1292,6 +1319,7 @@ elements.refreshPlaylists.addEventListener("click", () => loadUserPlaylists().ca
 elements.playRound.addEventListener("click", () => playRound().catch(error => setStatus(error.message)));
 elements.replayRound.addEventListener("click", () => replayRound().catch(error => setStatus(error.message)));
 elements.revealAnswer.addEventListener("click", () => revealAnswer().catch(error => setStatus(error.message)));
+elements.revealAnswerForAll?.addEventListener("click", () => revealAnswerForAll().catch(error => setStatus(error.message)));
 elements.continueSong.addEventListener("click", () => continueSong().catch(error => setStatus(error.message)));
 elements.playFullSong.addEventListener("click", () => playFullSong().catch(error => setStatus(error.message)));
 elements.manualTimer?.addEventListener("click", () => startManualTimer(10));

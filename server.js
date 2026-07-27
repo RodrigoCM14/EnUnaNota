@@ -906,7 +906,12 @@ async function handleApi(req, res, pathname, searchParams) {
     if (room.gameOver && body.round) return sendJson(res, 409, { error: "La partida termino. Continua o elige otra playlist." });
     if (room.goldenVote?.active && body.round) return sendJson(res, 409, { error: "Hay una votacion de Buzz de Oro activa" });
     if (body.incrementRound && body.round) room.roundNumber += 1;
+    const previousRound = room.round;
     room.round = body.round || null;
+    if (room.round?.acceptBuzzes === true && previousRound?.acceptBuzzes !== true) {
+      // Buzzes use the server clock, so start the timer on that same clock.
+      room.round.startedAt = Date.now();
+    }
     const clipSeconds = Number(body.clipSeconds);
     if (Number.isFinite(clipSeconds)) {
       room.clipSeconds = Math.min(20, Math.max(1, clipSeconds));

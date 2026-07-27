@@ -225,12 +225,21 @@ function renderAdminControls(players) {
     if (!player) continue;
     const row = document.createElement("div");
     row.className = "admin-player-row";
-    row.innerHTML = `<strong>${player.name}</strong><span>${player.score} ${t("common.points")}</span><button data-player="${player.id}" data-delta="1">+1</button><button data-player="${player.id}" data-delta="-1">-1</button>`;
+    row.innerHTML = `<strong>${player.name}</strong><span>${formatBuzzTime(buzz)}</span><span>${player.score} ${t("common.points")}</span><button data-player="${player.id}" data-delta="1">+1</button><button data-player="${player.id}" data-delta="-1">-1</button>`;
     adminPlayerControls.append(row);
   }
   if (!adminPlayerControls.children.length) {
     adminPlayerControls.innerHTML = `<p class="muted">${t("player.waitingBuzzOrder")}</p>`;
   }
+}
+
+function formatBuzzTime(buzz) {
+  if (Number.isFinite(Number(buzz?.elapsedMs))) {
+    return `${(Number(buzz.elapsedMs) / 1000).toFixed(2)}s`;
+  }
+  const startedAt = Number(state?.round?.startedAt || buzz?.at);
+  const elapsedMs = Math.max(0, Number(buzz?.at || Date.now()) - startedAt);
+  return `${(elapsedMs / 1000).toFixed(2)}s`;
 }
 
 function renderAdminPlaylistSelector() {
