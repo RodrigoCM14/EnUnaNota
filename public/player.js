@@ -1,4 +1,4 @@
-import { initLanguageControls, t, translatePage, translateServerMessage } from "./i18n.js";
+import { t, translatePage, translateServerMessage } from "./i18n.js";
 
 const $ = selector => document.querySelector(selector);
 
@@ -284,7 +284,6 @@ function refreshLanguage() {
   }
 }
 
-initLanguageControls(refreshLanguage);
 refreshLanguage();
 
 showAdminKey.addEventListener("click", () => {

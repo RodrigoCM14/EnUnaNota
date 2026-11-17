@@ -13,18 +13,11 @@
         <img class="welcome-logo" src="./logo.png" alt="En Una Nota">
         <p class="eyebrow" data-i18n="host.welcomeEyebrow">Juego musical de fiesta</p>
         <h1 id="welcomeTitle" data-i18n="host.welcomeTitle">En Una Nota</h1>
-        <p class="welcome-copy" data-i18n="host.welcomeSubtitle">Elige idioma para preparar la partida.</p>
-        <div class="welcome-language">
-          <span data-i18n="host.chooseLanguage">Idioma</span>
-          <div class="language-switcher" data-i18n-aria-label="common.language" aria-label="Idioma">
-            <button type="button" data-lang-choice="es"><span aria-hidden="true">🇪🇸</span><span data-i18n="common.spanish">Español</span></button>
-            <button type="button" data-lang-choice="en"><span aria-hidden="true">🇺🇸</span><span data-i18n="common.english">English</span></button>
-          </div>
-        </div>
+        <p class="welcome-copy" data-i18n="host.welcomeSubtitle">¡Prepara la música y comienza a jugar!</p>
         <div class="welcome-actions">
           <button id="closeWelcome" class="primary" type="button" data-i18n="host.enterGame">Entrar al juego</button>
         </div>
-        <p id="welcomeStatus" class="welcome-status" data-i18n="host.welcomeSpotifyHint">Puedes cambiar el idioma despues desde la pantalla del juego.</p>
+        <p id="welcomeStatus" class="welcome-status" data-i18n="host.welcomeSpotifyHint">Conecta Spotify para comenzar.</p>
       </div>
     </section>
 
@@ -50,7 +43,6 @@
             <span id="spotifyStatusText" data-i18n="common.spotifyDisconnected">Spotify sin conectar</span>
           </div>
           <button id="connectSpotify" class="primary" type="button" data-i18n="host.connectSpotify">Conectar Spotify</button>
-          <button id="changeLanguage" type="button" data-i18n="host.changeLanguage">Cambiar idioma</button>
           <button id="disconnectSpotify" type="button" data-i18n="host.disconnectSpotify">Desconectar</button>
         </div>
       </section>

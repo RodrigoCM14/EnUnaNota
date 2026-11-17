@@ -1,4 +1,4 @@
-import { initLanguageControls, t, translatePage, translateServerMessage } from "./i18n.js";
+import { t, translatePage, translateServerMessage } from "./i18n.js";
 
 const $ = selector => document.querySelector(selector);
 
@@ -25,7 +25,6 @@ const elements = {
   roomId: $("#roomId"),
   connectSpotify: $("#connectSpotify"),
   closeWelcome: $("#closeWelcome"),
-  changeLanguage: $("#changeLanguage"),
   activateScreenPlayer: $("#activateScreenPlayer"),
   disconnectSpotify: $("#disconnectSpotify"),
   loadPlaylist: $("#loadPlaylist"),
@@ -1305,13 +1304,11 @@ function refreshLanguage() {
   if (lastStatus) setStatus(lastStatus.message, lastStatus.values);
 }
 
-initLanguageControls(refreshLanguage);
 refreshLanguage();
 syncWelcomeForSession();
 
 elements.connectSpotify?.addEventListener("click", showRulesBeforeConnect);
 elements.closeWelcome?.addEventListener("click", () => hideWelcome({ remember: true }));
-elements.changeLanguage?.addEventListener("click", showWelcome);
 elements.activateScreenPlayer?.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || t("host.status.activateScreenFailed"))));
 elements.disconnectSpotify?.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || t("host.status.disconnectFailed"))));
 elements.loadPlaylist?.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));

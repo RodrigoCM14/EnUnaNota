@@ -1,5 +1,3 @@
-const STORAGE_KEY = "en_una_nota_language";
-
 const translations = {
   es: {
     "common.spanish": "Español",
@@ -29,9 +27,9 @@ const translations = {
     "host.enterGame": "Entrar al juego",
     "host.welcomeEyebrow": "Juego musical de fiesta",
     "host.welcomeTitle": "En Una Nota",
-    "host.welcomeSubtitle": "Elige idioma para preparar la partida.",
+    "host.welcomeSubtitle": "¡Prepara la música y comienza a jugar!",
     "host.chooseLanguage": "Idioma",
-    "host.welcomeSpotifyHint": "Puedes cambiar el idioma despues desde la pantalla del juego.",
+    "host.welcomeSpotifyHint": "Conecta Spotify para comenzar.",
     "host.reviewingTitle": "El host esta revisando",
     "host.reviewingDetail": "Espera la decision del anfitrion.",
     "host.yourPlaylists": "Tus playlists",
@@ -385,22 +383,8 @@ const serverMessages = {
   "Not found": { es: "No encontrado", en: "Not found" }
 };
 
-function normalizeLanguage(value) {
-  return value === "en" ? "en" : "es";
-}
-
 export function getLanguage() {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) return normalizeLanguage(stored);
-  return navigator.language?.toLowerCase().startsWith("en") ? "en" : "es";
-}
-
-export function setLanguage(language) {
-  const normalized = normalizeLanguage(language);
-  localStorage.setItem(STORAGE_KEY, normalized);
-  document.documentElement.lang = normalized;
-  translatePage();
-  window.dispatchEvent(new CustomEvent("languagechange", { detail: { language: normalized } }));
+  return "es";
 }
 
 export function t(key, values = {}) {
@@ -435,19 +419,4 @@ export function translatePage(root = document) {
   document.documentElement.lang = getLanguage();
   root.querySelectorAll("[data-i18n], [data-i18n-placeholder], [data-i18n-title], [data-i18n-aria-label], [data-i18n-alt]")
     .forEach(applyElementTranslation);
-  root.querySelectorAll("[data-lang-choice]").forEach(button => {
-    const active = button.dataset.langChoice === getLanguage();
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-pressed", String(active));
-  });
-}
-
-export function initLanguageControls(onChange) {
-  translatePage();
-  document.querySelectorAll("[data-lang-choice]").forEach(button => {
-    button.addEventListener("click", () => {
-      setLanguage(button.dataset.langChoice);
-      onChange?.(getLanguage());
-    });
-  });
 }
