@@ -25,15 +25,20 @@ const clients = new Map();
 const spotifyAuthStates = new Map();
 const spotifySessions = new Map();
 const oauthEvents = [];
-const ROOM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const ROOM_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 function createRoomId() {
   let id = "";
   do {
-    const bytes = crypto.randomBytes(6);
-    id = Array.from(bytes, byte => ROOM_ALPHABET[byte % ROOM_ALPHABET.length]).join("");
+    const letters = Array.from({ length: 2 }, () => ROOM_LETTERS[crypto.randomInt(ROOM_LETTERS.length)]).join("");
+    id = letters + String(crypto.randomInt(10_000)).padStart(4, "0");
   } while (rooms.has(id));
   return id;
+}
+
+function validAdminKey(room, key) {
+  const digits = room.id.match(/\d{4}$/)?.[0];
+  return Boolean(digits) && tokensMatch(`ADM${digits}`, String(key || "").trim().toUpperCase());
 }
 
 function createHostToken() {
@@ -697,6 +702,9 @@ async function handleApi(req, res, pathname, searchParams) {
     if (!name) return sendJson(res, 400, { error: "Nombre requerido" });
     const id = body.id || crypto.randomUUID();
     const wantsHost = Boolean(body.isHost);
+    if (wantsHost && !validAdminKey(room, body.adminKey)) {
+      return sendJson(res, 403, { error: "Clave admin incorrecta" });
+    }
     const normalizedName = name.toLocaleLowerCase();
     const duplicate = Object.values(room.players).find(player =>
       player.id !== id && player.name.trim().toLocaleLowerCase() === normalizedName
@@ -779,7 +787,7 @@ async function handleApi(req, res, pathname, searchParams) {
   if (pathname === "/api/host-heartbeat") {
     const adminKey = String(body.adminKey || "");
     const hostPlayerId = String(body.playerId || "");
-    const roomKeyMatches = adminKey.toUpperCase() === room.id.toUpperCase();
+    const roomKeyMatches = validAdminKey(room, adminKey);
     const hostMatches = room.hostPlayerId === hostPlayerId;
     if (!roomKeyMatches || !hostMatches) {
       return sendJson(res, 403, { error: "Host no disponible" });
@@ -794,7 +802,7 @@ async function handleApi(req, res, pathname, searchParams) {
     const hostToken = String(body.hostToken || "");
     const hostPlayerId = String(body.hostPlayerId || "");
     const action = String(body.action || "");
-    const roomKeyMatches = adminKey.toUpperCase() === room.id.toUpperCase();
+    const roomKeyMatches = validAdminKey(room, adminKey);
     const desktopHost = tokensMatch(room.hostToken, hostToken);
     const mobileHost = roomKeyMatches && room.hostPlayerId === hostPlayerId && Date.now() - room.hostLastSeen <= HOST_LEASE_MS;
     if (!desktopHost && !mobileHost) {

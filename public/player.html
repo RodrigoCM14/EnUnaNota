@@ -20,9 +20,10 @@
           <span data-i18n="player.name">Nombre</span>
           <input id="playerName" maxlength="24" autocomplete="name" placeholder="Tu nombre" data-i18n-placeholder="player.namePlaceholder">
         </label>
-        <label>
-          <span><span data-i18n="player.hostKey">Clave host</span> <span class="optional-label" data-i18n="player.optional">opcional</span></span>
-          <input id="adminKey" inputmode="text" autocomplete="off" placeholder="Codigo de sala" data-i18n-placeholder="player.hostPlaceholder">
+        <button id="showAdminKey" class="admin-key-toggle" type="button" aria-expanded="false" aria-controls="adminKeyField" data-i18n="player.adminAccess">Acceso de administrador</button>
+        <label id="adminKeyField" hidden>
+          <span data-i18n="player.hostKey">Clave host</span>
+          <input id="adminKey" inputmode="text" autocomplete="off" autocapitalize="characters" placeholder="ADM + 4 digitos" data-i18n-placeholder="player.hostPlaceholder">
         </label>
         <p id="joinError" class="join-error"></p>
         <button id="joinGame" class="primary" data-i18n="player.enter">Entrar</button>

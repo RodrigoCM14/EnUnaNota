@@ -984,6 +984,18 @@ h2 {
   text-align: center;
 }
 
+.admin-key-toggle {
+  justify-self: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .optional-label {
   color: var(--muted);
   font-size: 0.82rem;

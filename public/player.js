@@ -6,6 +6,8 @@ const joinScreen = $("#joinScreen");
 const buzzerScreen = $("#buzzerScreen");
 const playerName = $("#playerName");
 const adminKey = $("#adminKey");
+const showAdminKey = $("#showAdminKey");
+const adminKeyField = $("#adminKeyField");
 const joinError = $("#joinError");
 const joinGame = $("#joinGame");
 const buzzButton = $("#buzzButton");
@@ -40,6 +42,7 @@ let playerId = localStorage.getItem(playerStorageKey) || crypto.randomUUID();
 let eventSource = null;
 let state = null;
 let isAdmin = false;
+let activeAdminKey = "";
 let hostHeartbeatId = null;
 
 localStorage.setItem(playerStorageKey, playerId);
@@ -66,13 +69,14 @@ function stopHostHeartbeat() {
 function startHostHeartbeat() {
   stopHostHeartbeat();
   hostHeartbeatId = window.setInterval(async () => {
-    const result = await api("/api/host-heartbeat", { adminKey: roomId, playerId });
+    const result = await api("/api/host-heartbeat", { adminKey: activeAdminKey, playerId });
     if (result.error) revokeHostControls(result.error);
   }, 15_000);
 }
 
 function revokeHostControls(message = "Host no disponible") {
   isAdmin = false;
+  activeAdminKey = "";
   stopHostHeartbeat();
   adminControls.classList.add("hidden");
   hello.textContent = playerName.value.trim();
@@ -92,21 +96,22 @@ async function join() {
     return;
   }
   const normalizedHostKey = typedAdminKey.toUpperCase();
-  const normalizedRoomId = roomId.toUpperCase();
-  if (typedAdminKey && normalizedHostKey !== normalizedRoomId) {
+  const roomDigits = roomId.match(/\d{4}$/)?.[0];
+  if (typedAdminKey && (!roomDigits || normalizedHostKey !== `ADM${roomDigits}`)) {
     joinError.textContent = t("player.wrongHostKey");
     adminKey.focus();
     return;
   }
-  const wantsHost = Boolean(typedAdminKey) && normalizedHostKey === normalizedRoomId;
+  const wantsHost = Boolean(typedAdminKey);
   localStorage.setItem("en_una_nota_name", name);
   localStorage.setItem("en_una_nota_room", room());
-  const result = await api("/api/join", { id: playerId, name, isHost: wantsHost });
+  const result = await api("/api/join", { id: playerId, name, isHost: wantsHost, adminKey: normalizedHostKey });
   if (result.error) {
     joinError.textContent = translateServerMessage(result.error);
     return;
   }
   isAdmin = Boolean(result.isHost);
+  activeAdminKey = isAdmin ? normalizedHostKey : "";
   joinScreen.classList.add("hidden");
   joinScreen.hidden = true;
   joinScreen.setAttribute("aria-hidden", "true");
@@ -122,7 +127,7 @@ async function join() {
 async function hostCommand(action, extra = {}) {
   if (!isAdmin) return;
   adminStatus.textContent = t("player.sendingControl");
-  const result = await api("/api/host-command", { adminKey: roomId, hostPlayerId: playerId, action, ...extra });
+  const result = await api("/api/host-command", { adminKey: activeAdminKey, hostPlayerId: playerId, action, ...extra });
   if (result.error) {
     adminStatus.textContent = translateServerMessage(result.error);
     if (result.error === "Clave admin incorrecta" || result.error === "Host no disponible") {
@@ -282,6 +287,12 @@ function refreshLanguage() {
 initLanguageControls(refreshLanguage);
 refreshLanguage();
 
+showAdminKey.addEventListener("click", () => {
+  adminKeyField.hidden = false;
+  showAdminKey.hidden = true;
+  showAdminKey.setAttribute("aria-expanded", "true");
+  adminKey.focus();
+});
 joinGame.addEventListener("click", join);
 playerName.addEventListener("keydown", event => {
   if (event.key === "Enter") join();
