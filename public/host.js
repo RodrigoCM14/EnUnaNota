@@ -1225,7 +1225,7 @@ function render() {
   elements.playlistBanner.textContent = state.playlistName ? `${t("common.playlist")}: ${state.playlistName}` : t("common.playlistUnloaded");
   elements.answerPanel?.classList.toggle("answer-hidden", !showAnswer);
   elements.cover.classList.toggle("cover-placeholder", !hasCover);
-  elements.cover.src = hasCover ? round.track.image : "";
+  elements.cover.src = hasCover ? round.track.image : "./cover-placeholder.svg";
   elements.roundLabel.textContent = `${roundNumber} \u00b7 ${playlistName}`;
   elements.trackTitle.textContent = showAnswer && round ? round.track.name : t("common.song");
   elements.trackArtist.textContent = showAnswer && round ? round.track.artists : t("common.artist");
