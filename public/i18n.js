@@ -62,6 +62,8 @@ const translations = {
     "host.rule1": "Durante los primeros 10 segundos vale tararear, cantar o decir el nombre de la cancion; si el host presiona Continuar, SOLO vale decir el nombre de la cancion.",
     "host.rule2": "Si respondes mal, pierdes 1 punto y pasa el turno al siguiente buzzer.",
     "host.rule3": "Si nadie la sabe, el host puede mostrar la respuesta o pasar a una nueva ronda.",
+    "host.ruleTimer": "El anfitrión inicia una cuenta regresiva de 10 segundos en la pantalla. El temporizador no cambia los puntajes automáticamente.",
+    "host.ruleGolden": "Se puede proponer cuando alguien tiene 9 puntos o más. Si al menos el 51 % de los jugadores acepta, los puntajes vuelven a cero y gana quien acierte primero.",
     "host.understood": "Entendido",
 
     "host.status.addClientId": "Agrega tu Client ID de Spotify",
