@@ -34,6 +34,7 @@ const translations = {
     "host.reviewingDetail": "Espera la decision del anfitrion.",
     "host.yourPlaylists": "Tus playlists",
     "host.selectPlaylist": "Elegir playlist",
+    "host.playlistsButton": "Playlists",
     "host.rules": "Reglas",
     "host.refresh": "Actualizar",
     "host.refreshPlaylists": "Actualizar playlists",

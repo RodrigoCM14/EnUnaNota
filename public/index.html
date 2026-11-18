@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>En Una Nota</title>
+    <script>try { document.documentElement.dataset.theme = localStorage.getItem("en_una_nota_theme") === "dark" ? "dark" : "light"; } catch { document.documentElement.dataset.theme = "light"; }</script>
     <link rel="icon" href="./brand-icon.png" type="image/png">
     <link rel="stylesheet" href="./styles.css">
     <link rel="stylesheet" href="./visual.css">
@@ -39,7 +40,11 @@
           </div>
         </div>
         <div class="topbar-actions">
-          <button id="openPlaylists" type="button" aria-haspopup="dialog" aria-controls="playlistModal" data-i18n="host.selectPlaylist">Elegir playlist</button>
+          <button id="themeToggle" class="theme-toggle" type="button" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro" aria-pressed="false">
+            <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.4 15.6A8.5 8.5 0 0 1 8.4 3.6a8.5 8.5 0 1 0 12 12Z"/></svg>
+            <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+          </button>
+          <button id="openPlaylists" class="primary" type="button" aria-haspopup="dialog" aria-controls="playlistModal" data-i18n="host.playlistsButton">Playlists</button>
           <button id="openRules" type="button" aria-haspopup="dialog" aria-controls="rulesModal" data-i18n="host.rules">Reglas</button>
         </div>
         <div class="spotify-bar">

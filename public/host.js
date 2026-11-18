@@ -32,6 +32,7 @@ const elements = {
   openPlaylists: $("#openPlaylists"),
   closePlaylists: $("#closePlaylists"),
   openRules: $("#openRules"),
+  themeToggle: $("#themeToggle"),
   playRound: $("#playRound"),
   replayRound: $("#replayRound"),
   revealAnswer: $("#revealAnswer"),
@@ -215,6 +216,16 @@ function updateSpotifyButton() {
   elements.connectSpotify.title = action;
   elements.connectSpotify.setAttribute("aria-label", action);
   elements.connectSpotify.setAttribute("aria-pressed", String(connected));
+}
+
+function setTheme(theme) {
+  const dark = theme === "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  try { localStorage.setItem("en_una_nota_theme", dark ? "dark" : "light"); } catch { /* El tema sigue activo durante esta visita. */ }
+  const action = dark ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+  elements.themeToggle.setAttribute("aria-label", action);
+  elements.themeToggle.title = action;
+  elements.themeToggle.setAttribute("aria-pressed", String(dark));
 }
 
 function showWelcome() {
@@ -1329,6 +1340,7 @@ function refreshLanguage() {
 }
 
 refreshLanguage();
+setTheme(document.documentElement.dataset.theme);
 updateSpotifyButton();
 syncWelcomeForSession();
 
@@ -1337,6 +1349,7 @@ elements.connectSpotify?.addEventListener("click", () => {
   action().catch(error => setStatus(error.message || t("host.status.cannotOpenSpotify")));
 });
 elements.openRules?.addEventListener("click", showRules);
+elements.themeToggle?.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
 elements.openPlaylists?.addEventListener("click", openPlaylistModal);
 elements.closePlaylists?.addEventListener("click", closePlaylistModal);
 elements.playlistModal?.addEventListener("click", event => {
