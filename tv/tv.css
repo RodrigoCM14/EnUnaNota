@@ -31,3 +31,7 @@ button:focus, a:focus, input:focus, select:focus { outline: 4px solid #71E5FE; o
 .tv-pair p { font-size: 16px; margin: 8px 0; }
 .tv-pair strong { display: block; font-size: 30px; letter-spacing: .15em; }
 .tv-pair img { width: 180px; height: 180px; background: white; }
+.tv-device { display: flex; align-items: center; gap: 16px; margin: 0 0 18px; padding: 14px 20px; background: #fff; border: 1px solid #dce4ef; border-radius: 14px; }
+.tv-device[hidden] { display: none; }
+.tv-device p { margin: 4px 0 0; font-size: 14px; }
+.tv-device select { min-width: 180px; padding: 10px; border: 1px solid #c5d2e1; border-radius: 9px; }

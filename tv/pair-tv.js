@@ -1,23 +1,55 @@
 // La TV muestra la vinculación dentro de la pantalla principal, sin bloquearla.
 let tvPairGeneration = 0;
 let tvPairInProgress = false;
-let tvSdkRequested = false;
+
 function showTvPairing() {
   const panel = document.getElementById('tvSpotifyPair');
   panel.hidden = false;
+  document.getElementById('tvDevicePanel').hidden = true;
   if (!tvPairInProgress) startTvPairing();
 }
 function hideTvPairing() {
   ++tvPairGeneration;
   tvPairInProgress = false;
   document.getElementById('tvSpotifyPair').hidden = true;
+  document.getElementById('tvDevicePanel').hidden = false;
+  refreshTvDevices();
 }
-function loadTvSpotifySdk() {
-  if (tvSdkRequested || window.Spotify) return;
-  tvSdkRequested = true;
-  const script = document.createElement('script');
-  script.src = 'https://sdk.scdn.co/spotify-player.js';
-  document.head.appendChild(script);
+async function refreshTvDevices() {
+  const status = document.getElementById('tvDeviceStatus');
+  const select = document.getElementById('tvDeviceSelect');
+  try {
+    const data = await spotify('/me/player/devices');
+    const devices = (data && data.devices || []).filter(device => device.id && !device.is_restricted);
+    const previous = activePlaybackDeviceId || select.value;
+    const chosen = devices.find(device => device.id === previous) || devices.find(device => device.is_active) || devices[0];
+    select.replaceChildren();
+    if (!chosen) {
+      activePlaybackDeviceId = '';
+      const empty = document.createElement('option');
+      empty.textContent = 'No hay dispositivos disponibles';
+      empty.value = '';
+      select.appendChild(empty);
+      status.textContent = 'Abre Spotify en otro dispositivo con la misma cuenta, reproduce algo y actualiza la lista.';
+      setStatus(status.textContent);
+      return '';
+    }
+    devices.forEach(device => {
+      const option = document.createElement('option');
+      option.value = device.id;
+      option.textContent = device.name + (device.is_active ? ' (activo)' : '');
+      select.appendChild(option);
+    });
+    select.value = chosen.id;
+    activePlaybackDeviceId = chosen.id;
+    status.textContent = 'El audio sonará en ' + chosen.name + '.';
+    return chosen.id;
+  } catch (error) {
+    activePlaybackDeviceId = '';
+    status.textContent = 'No se pudieron cargar los dispositivos: ' + (error.message || 'revisa la conexión con Spotify');
+    setStatus(status.textContent);
+    return '';
+  }
 }
 async function startTvPairing() {
   const generation = ++tvPairGeneration;
@@ -67,3 +99,10 @@ async function startTvPairing() {
   }
 }
 document.getElementById('tvPairRetry').addEventListener('click', startTvPairing);
+
+document.getElementById('tvDeviceRefresh').addEventListener('click', refreshTvDevices);
+document.getElementById('tvDeviceSelect').addEventListener('change', function (event) {
+  activePlaybackDeviceId = event.target.value;
+  const option = event.target.options[event.target.selectedIndex];
+  document.getElementById('tvDeviceStatus').textContent = option && option.value ? 'El audio sonará en ' + option.textContent + '.' : 'Selecciona un dispositivo disponible.';
+});

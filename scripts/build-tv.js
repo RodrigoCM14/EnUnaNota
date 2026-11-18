@@ -17,7 +17,19 @@ source = source.replace("async function connectSpotify() {", "async function con
 const pairSource = fs.readFileSync(path.join(root, "tv", "pair-tv.js"), "utf8");
 source = source.replace("function showWelcome() {", pairSource + "\nfunction showWelcome() { showTvPairing(); return;");
 source = source.replace("function hideWelcome() {", "function hideWelcome() { hideTvPairing(); return;");
-source = source.replace("async function initPlayer(activate = false) {", "async function initPlayer(activate = false) { loadTvSpotifySdk();");
+// La TV controla un dispositivo Spotify Connect, sin iniciar el SDK web.
+function replaceSection(start, end, replacement) {
+  const from = source.indexOf(start), to = source.indexOf(end, from);
+  if (from < 0 || to < 0) throw new Error(`No se encontró la sección ${start}`);
+  source = source.slice(0, from) + replacement + "\n\n" + source.slice(to);
+}
+replaceSection("async function initPlayer(", "async function activateScreenPlayer(", `async function initPlayer() {
+  if (!await ensureSpotifyAccessToken()) return false;
+  return Boolean(await refreshTvDevices());
+}`);
+replaceSection("async function activateScreenPlayer(", "function playlistIdFromUrl(", `async function activateScreenPlayer() { await refreshTvDevices(); }
+async function findSpotifyDevice() { return activePlaybackDeviceId || await refreshTvDevices(); }`);
+replaceSection("async function playRoundBeep(", "function savePlayedTracks(", "async function playRoundBeep() {};");
 source = source.replace('      activateScreenPlayer().catch(() => setStatus("host.status.reactivatePlayer"));', '      // En TV no iniciar el SDK hasta que el usuario solicite reproducción.');
 source = source.replace('"./cover-placeholder.svg"', '"/cover-placeholder.svg"');
 
@@ -39,6 +51,11 @@ async function build() {
       <section id="tvSpotifyPair" class="tv-pair" hidden aria-labelledby="tvPairTitle">
         <div><h1 id="tvPairTitle">Conecta Spotify</h1><p id="tvPairStatus" role="status">Preparando el código para tu celular...</p><strong id="tvPairCode"></strong><p>También puedes abrir <b>enunanota-tv.onrender.com/spotify-pair.html</b> en tu celular.</p><button id="tvPairRetry" class="primary" type="button" hidden>Reintentar</button></div>
         <img id="tvPairQr" width="180" height="180" alt="Código QR para conectar Spotify">
+      </section>
+      <section id="tvDevicePanel" class="tv-device" hidden aria-labelledby="tvDeviceTitle">
+        <div><strong id="tvDeviceTitle">Reproducir en Spotify Connect</strong><p id="tvDeviceStatus" role="status">Abre Spotify en otro dispositivo con la misma cuenta y actualiza la lista.</p></div>
+        <select id="tvDeviceSelect" aria-label="Dispositivo para reproducir"></select>
+        <button id="tvDeviceRefresh" type="button">Actualizar dispositivos</button>
       </section>`);
   html = html.replace('<script src="https://sdk.scdn.co/spotify-player.js"></script>', '');
   html = html.replace('</head>', '  <link rel="stylesheet" href="/tv/tv.css">\n  </head>');
