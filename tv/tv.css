@@ -21,3 +21,7 @@ button:focus, a:focus, input:focus, select:focus { outline: 4px solid #71E5FE; o
 .topbar { padding: 16px 20px; }
 .now-playing .track-copy { margin-top: 16px; }
 .playlist-modal .playlist-card { margin: 5px; }
+#tvSpotifyPair { text-align: center; margin: 12px auto; }
+#tvSpotifyPair p { margin: 8px 0; font-size: 16px; }
+#tvSpotifyPair img { display: block; background: white; margin: 8px auto; }
+#tvSpotifyPair strong { display: block; font-size: 32px; letter-spacing: .16em; }

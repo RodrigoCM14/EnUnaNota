@@ -13,6 +13,8 @@ const redirect = 'if (redirectLocalhostToLoopback()) await new Promise(() => {})
 if (!source.includes(redirect)) throw new Error("No se encontró el inicio esperado del anfitrión; revise la compilación para TV.");
 // La navegación a 127.0.0.1 ya abandona la página; no hace falta await de nivel superior.
 source = source.replace(redirect, "redirectLocalhostToLoopback();");
+source = source.replace("async function connectSpotify() {", "async function connectSpotify() { return startTvPairing();");
+source += "\n" + fs.readFileSync(path.join(root, "tv", "pair-tv.js"), "utf8");
 source = source.replace('"./cover-placeholder.svg"', '"/cover-placeholder.svg"');
 
 async function build() {

@@ -24,6 +24,16 @@ const rooms = new Map();
 const clients = new Map();
 const spotifyAuthStates = new Map();
 const spotifySessions = new Map();
+// La clave de recogida nunca aparece en el QR ni se entrega al teléfono.
+const tvPairs = new Map();
+const tvPairAttempts = new Map();
+const TV_PAIR_TTL = 5 * 60 * 1000;
+function cleanTvPairs() {
+  const now = Date.now();
+  for (const [code, pair] of tvPairs) if (pair.expiresAt <= now) tvPairs.delete(code);
+  for (const [ip, item] of tvPairAttempts) if (item.resetAt <= now) tvPairAttempts.delete(ip);
+}
+
 const oauthEvents = [];
 const ROOM_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 
@@ -518,6 +528,37 @@ async function finishSpotifyLogin(req, res, searchParams) {
 }
 
 async function handleApi(req, res, pathname, searchParams) {
+  if (req.method === "POST" && pathname === "/api/tv-pair/create") {
+    cleanTvPairs();
+    if (tvPairs.size >= 1000) return sendJson(res, 503, { error: "Intenta de nuevo en unos minutos" });
+    let code;
+    do { code = String(crypto.randomInt(100000000)).padStart(8, "0"); } while (tvPairs.has(code));
+    const secret = crypto.randomBytes(32).toString("hex");
+    tvPairs.set(code, { secret, expiresAt: Date.now() + TV_PAIR_TTL, token: null });
+    return sendJson(res, 201, { code, secret, expiresIn: TV_PAIR_TTL });
+  }
+  if (req.method === "POST" && pathname === "/api/tv-pair/complete") {
+    cleanTvPairs();
+    const ip = req.socket.remoteAddress || "unknown";
+    const attempts = tvPairAttempts.get(ip) || { count: 0, resetAt: Date.now() + 60000 };
+    if (++attempts.count > 20) return sendJson(res, 429, { error: "Demasiados intentos. Espera un minuto." });
+    tvPairAttempts.set(ip, attempts);
+    const body = await readBody(req);
+    const pair = tvPairs.get(String(body.code || ""));
+    if (!pair || pair.token) return sendJson(res, 400, { error: "Código vencido o inválido. Genera uno nuevo en la TV." });
+    if (!body.token || typeof body.token.access_token !== "string" || typeof body.token.refresh_token !== "string" || body.token.access_token.length > 4096 || body.token.refresh_token.length > 4096) return sendJson(res, 400, { error: "La autorización de Spotify está incompleta" });
+    pair.token = { access_token: body.token.access_token, refresh_token: body.token.refresh_token, expires_in: Math.min(Number(body.token.expires_in) || 3600, 3600) };
+    return sendJson(res, 200, { ok: true });
+  }
+  if (req.method === "POST" && pathname === "/api/tv-pair/poll") {
+    cleanTvPairs();
+    const body = await readBody(req);
+    const pair = tvPairs.get(String(body.code || ""));
+    if (!pair || !tokensMatch(pair.secret, body.secret)) return sendJson(res, 404, { error: "Código vencido" });
+    if (!pair.token) return sendJson(res, 200, { pending: true });
+    tvPairs.delete(String(body.code));
+    return sendJson(res, 200, { token: pair.token });
+  }
   if (req.method === "POST" && pathname === "/api/session") {
     const body = await readBody(req);
     const requestedRoomId = String(body.roomId || "").trim().toUpperCase();
@@ -958,6 +999,10 @@ async function handleApi(req, res, pathname, searchParams) {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  // El retorno PKCE conserva el URI /tv/ ya registrado en Spotify.
+  if (url.pathname === "/tv/" && String(url.searchParams.get("state") || "").startsWith("tvpair-")) {
+    return sendRedirect(res, `/spotify-pair.html${url.search}`);
+  }
   if (url.pathname === "/spotify/callback") {
     finishSpotifyLogin(req, res, url.searchParams).catch(error => {
       const origin = originFromRequest(req);
