@@ -25,3 +25,9 @@ button:focus, a:focus, input:focus, select:focus { outline: 4px solid #71E5FE; o
 #tvSpotifyPair p { margin: 8px 0; font-size: 16px; }
 #tvSpotifyPair img { display: block; background: white; margin: 8px auto; }
 #tvSpotifyPair strong { display: block; font-size: 32px; letter-spacing: .16em; }
+.tv-pair { display: flex; align-items: center; justify-content: center; gap: 28px; margin-bottom: 18px; padding: 20px 28px; background: #fff; border: 1px solid #dce4ef; border-radius: 18px; }
+.tv-pair[hidden] { display: none; }
+.tv-pair h1 { font-size: 26px; margin: 0 0 8px; }
+.tv-pair p { font-size: 16px; margin: 8px 0; }
+.tv-pair strong { display: block; font-size: 30px; letter-spacing: .15em; }
+.tv-pair img { width: 180px; height: 180px; background: white; }
