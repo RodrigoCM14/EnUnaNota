@@ -55,3 +55,17 @@ button:focus, a:focus, input:focus, select:focus { outline: 4px solid #71E5FE; o
   .now-playing h2 { font-size: 28px; }
   .now-playing .track-copy { margin-top: 8px; }
 }
+
+/* En Tizen 5, flex no admite gap: dar espacio real a cada bloque. */
+.stage { gap: 0; }
+.stage > * { flex-shrink: 0; }
+.stage > * + * { margin-top: 16px; }
+.now-playing { min-height: 0; flex: 0 0 auto; gap: 0; }
+.now-playing img { height: 200px; flex: 0 0 auto; }
+.now-playing .track-copy { flex: 0 0 auto; }
+@media (max-height: 800px) {
+  .stage { gap: 0; }
+  .stage > * + * { margin-top: 12px; }
+  .now-playing { min-height: 0; gap: 0; }
+  .now-playing img { height: 130px; }
+}
