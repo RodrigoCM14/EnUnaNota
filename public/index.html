@@ -38,15 +38,16 @@
             </div>
           </div>
         </div>
+        <div class="topbar-actions">
+          <button id="openPlaylists" type="button" aria-haspopup="dialog" aria-controls="playlistModal" data-i18n="host.selectPlaylist">Elegir playlist</button>
+          <button id="openRules" type="button" aria-haspopup="dialog" aria-controls="rulesModal" data-i18n="host.rules">Reglas</button>
+        </div>
         <div class="spotify-bar">
           <div class="connection-pill">
             <div class="status disconnected" id="spotifyStatus" title="Spotify sin conectar" aria-label="Spotify sin conectar" data-i18n-title="common.spotifyDisconnected" data-i18n-aria-label="common.spotifyDisconnected">&#10005;</div>
             <span id="spotifyStatusText" data-i18n="common.spotifyDisconnected">Spotify sin conectar</span>
           </div>
-          <button id="connectSpotify" class="primary" type="button" data-i18n="host.connectSpotify">Conectar Spotify</button>
-          <button id="disconnectSpotify" type="button" data-i18n="host.disconnectSpotify">Desconectar</button>
-          <button id="openPlaylists" type="button" aria-haspopup="dialog" aria-controls="playlistModal" data-i18n="host.selectPlaylist">Elegir playlist</button>
-          <button id="openRules" type="button" aria-haspopup="dialog" aria-controls="rulesModal" data-i18n="host.rules">Reglas</button>
+          <button id="connectSpotify" class="primary" type="button" aria-label="Conectar cuenta de Spotify" title="Conectar cuenta de Spotify">Spotify</button>
         </div>
       </section>
 
@@ -91,12 +92,14 @@
           <p id="continueWarning" class="continue-warning hidden" data-i18n="host.continueWarning">Al continuar la cancion, solo vale decir el nombre: no tararear, cantar ni hacer melodias.</p>
         </section>
 
-        <aside class="panel score-panel">
+        <aside class="panel buzz-panel">
           <div class="buzz-board">
             <h2 data-i18n="host.responseOrder">Orden de respuesta</h2>
             <ol id="buzzList"></ol>
             <button id="clearBuzzes" data-i18n="host.clearBuzzers">Limpiar buzzers</button>
           </div>
+        </aside>
+        <aside class="panel score-panel">
           <div class="score-head">
             <h2 data-i18n="host.scores">Puntajes</h2>
             <div id="scoreboard" class="scoreboard"></div>

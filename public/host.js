@@ -26,7 +26,6 @@ const elements = {
   connectSpotify: $("#connectSpotify"),
   closeWelcome: $("#closeWelcome"),
   activateScreenPlayer: $("#activateScreenPlayer"),
-  disconnectSpotify: $("#disconnectSpotify"),
   loadPlaylist: $("#loadPlaylist"),
   refreshPlaylists: $("#refreshPlaylists"),
   playlistGrid: $("#playlistGrid"),
@@ -211,6 +210,14 @@ function setStatus(message, values = {}) {
   if (elements.welcomeStatus) elements.welcomeStatus.textContent = text;
 }
 
+function updateSpotifyButton() {
+  const connected = Boolean(validToken() || refreshToken);
+  const action = connected ? "Desconectar cuenta de Spotify" : "Conectar cuenta de Spotify";
+  elements.connectSpotify.title = action;
+  elements.connectSpotify.setAttribute("aria-label", action);
+  elements.connectSpotify.setAttribute("aria-pressed", String(connected));
+}
+
 function hasSeenWelcome() {
   return localStorage.getItem(WELCOME_SEEN_KEY) === "1";
 }
@@ -342,6 +349,7 @@ async function disconnectSpotify() {
   resetContinueButton();
   spotifyPlayer?.disconnect?.();
   spotifyPlayer = null;
+  updateSpotifyButton();
   hideWelcome({ remember: true });
   setStatus("host.status.spotifyDisconnected");
 }
@@ -353,6 +361,7 @@ function saveToken(token) {
   if (accessToken) localStorage.setItem("spotify_access_token", accessToken);
   if (refreshToken) localStorage.setItem("spotify_refresh_token", refreshToken);
   localStorage.setItem("spotify_expires_at", String(tokenExpiresAt));
+  updateSpotifyButton();
 }
 
 async function spotifyToken(body) {
@@ -1326,9 +1335,13 @@ function refreshLanguage() {
 }
 
 refreshLanguage();
+updateSpotifyButton();
 syncWelcomeForSession();
 
-elements.connectSpotify?.addEventListener("click", () => connectSpotify().catch(error => setStatus(error.message || t("host.status.cannotOpenSpotify"))));
+elements.connectSpotify?.addEventListener("click", () => {
+  const action = validToken() || refreshToken ? disconnectSpotify : connectSpotify;
+  action().catch(error => setStatus(error.message || t("host.status.cannotOpenSpotify")));
+});
 elements.openRules?.addEventListener("click", showRules);
 elements.openPlaylists?.addEventListener("click", openPlaylistModal);
 elements.closePlaylists?.addEventListener("click", closePlaylistModal);
@@ -1363,7 +1376,6 @@ document.addEventListener("keydown", event => {
 });
 elements.closeWelcome?.addEventListener("click", () => hideWelcome({ remember: true }));
 elements.activateScreenPlayer?.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || t("host.status.activateScreenFailed"))));
-elements.disconnectSpotify?.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || t("host.status.disconnectFailed"))));
 elements.loadPlaylist?.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
 elements.refreshPlaylists.addEventListener("click", () => loadUserPlaylists().catch(error => setStatus(error.message)));
 elements.playRound.addEventListener("click", () => playRound().catch(error => setStatus(error.message)));
