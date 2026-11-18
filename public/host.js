@@ -4,7 +4,6 @@ const $ = selector => document.querySelector(selector);
 
 const DEFAULT_SPOTIFY_CLIENT_ID = "8791a946e68c476cac41c3d5023a86a7";
 const DEFAULT_CLIP_SECONDS = 10;
-const WELCOME_SEEN_KEY = "en_una_nota_welcome_seen";
 const ROOM_STORAGE_KEY = "room_id";
 const HOST_TOKEN_STORAGE_KEY = "en_una_nota_host_token";
 const SPOTIFY_SCOPES = [
@@ -24,7 +23,7 @@ const elements = {
   playlistUrl: $("#playlistUrl"),
   roomId: $("#roomId"),
   connectSpotify: $("#connectSpotify"),
-  closeWelcome: $("#closeWelcome"),
+  welcomeConnect: $("#welcomeConnect"),
   activateScreenPlayer: $("#activateScreenPlayer"),
   loadPlaylist: $("#loadPlaylist"),
   refreshPlaylists: $("#refreshPlaylists"),
@@ -218,27 +217,23 @@ function updateSpotifyButton() {
   elements.connectSpotify.setAttribute("aria-pressed", String(connected));
 }
 
-function hasSeenWelcome() {
-  return localStorage.getItem(WELCOME_SEEN_KEY) === "1";
-}
-
-function rememberWelcomeSeen() {
-  localStorage.setItem(WELCOME_SEEN_KEY, "1");
-}
-
 function showWelcome() {
   elements.welcomeScreen?.classList.remove("hidden");
+  const shell = document.querySelector(".shell");
+  if (shell) shell.inert = true;
   document.body.classList.add("welcome-active");
+  elements.welcomeConnect?.focus();
 }
 
-function hideWelcome({ remember = false } = {}) {
-  if (remember) rememberWelcomeSeen();
+function hideWelcome() {
   elements.welcomeScreen?.classList.add("hidden");
+  const shell = document.querySelector(".shell");
+  if (shell) shell.inert = false;
   document.body.classList.remove("welcome-active");
 }
 
 function syncWelcomeForSession() {
-  if (hasSeenWelcome()) {
+  if (validToken()) {
     hideWelcome();
   } else {
     showWelcome();
@@ -296,7 +291,6 @@ async function loadServerInfo() {
 }
 
 async function connectSpotify() {
-  rememberWelcomeSeen();
   if (location.hostname.endsWith(".onrender.com") && location.protocol !== "https:") {
     const url = canonicalHostUrl();
     location.replace(url.href);
@@ -350,7 +344,7 @@ async function disconnectSpotify() {
   spotifyPlayer?.disconnect?.();
   spotifyPlayer = null;
   updateSpotifyButton();
-  hideWelcome({ remember: true });
+  showWelcome();
   setStatus("host.status.spotifyDisconnected");
 }
 
@@ -1374,7 +1368,7 @@ document.addEventListener("keydown", event => {
     first.focus();
   }
 });
-elements.closeWelcome?.addEventListener("click", () => hideWelcome({ remember: true }));
+elements.welcomeConnect?.addEventListener("click", () => connectSpotify().catch(error => setStatus(error.message || t("host.status.cannotOpenSpotify"))));
 elements.activateScreenPlayer?.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || t("host.status.activateScreenFailed"))));
 elements.loadPlaylist?.addEventListener("click", () => loadPlaylist().catch(error => setStatus(error.message)));
 elements.refreshPlaylists.addEventListener("click", () => loadUserPlaylists().catch(error => setStatus(error.message)));
@@ -1425,13 +1419,12 @@ async function boot() {
   }
   await ensureHostSession();
   await finishAuth()
-  .then(async authResult => {
+  .then(async () => {
     const params = new URLSearchParams(location.search);
-    if (authResult === "connected") hideWelcome({ remember: true });
     if (!validToken()) await refreshSpotifyToken();
     if (validToken()) setStatus("host.status.connected");
     if (validToken()) {
-      hideWelcome({ remember: true });
+      hideWelcome();
       sessionStorage.removeItem("spotify_auto_connect_attempted");
       loadUserPlaylists().catch(error => setStatus(error.message));
       activateScreenPlayer().catch(() => setStatus("host.status.reactivatePlayer"));

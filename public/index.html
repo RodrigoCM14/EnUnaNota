@@ -9,14 +9,14 @@
     <link rel="stylesheet" href="./visual.css">
   </head>
   <body class="host">
-    <section id="welcomeScreen" class="welcome-screen" aria-labelledby="welcomeTitle">
+    <section id="welcomeScreen" class="welcome-screen" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" aria-describedby="welcomeStatus">
       <div class="welcome-card">
         <img class="welcome-logo" src="./brand-icon.png" alt="En Una Nota">
         <p class="eyebrow" data-i18n="host.welcomeEyebrow">Juego musical de fiesta</p>
         <h1 id="welcomeTitle" data-i18n="host.welcomeTitle">En Una Nota</h1>
         <p class="welcome-copy" data-i18n="host.welcomeSubtitle">¡Prepara la música y comienza a jugar!</p>
         <div class="welcome-actions">
-          <button id="closeWelcome" class="primary" type="button" data-i18n="host.enterGame">Entrar al juego</button>
+          <button id="welcomeConnect" class="primary" type="button" data-i18n="host.connectSpotify">Conectar Spotify</button>
         </div>
         <p id="welcomeStatus" class="welcome-status" data-i18n="host.welcomeSpotifyHint">Conecta Spotify para comenzar.</p>
       </div>
