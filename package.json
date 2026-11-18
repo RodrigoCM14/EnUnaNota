@@ -4,9 +4,13 @@
   "private": true,
   "description": "Juego de fiesta con Spotify Premium y buzzers moviles.",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:tv": "node scripts/build-tv.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12"
   }
 }

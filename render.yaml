@@ -3,6 +3,6 @@ services:
     name: en-una-nota
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install --include=dev && npm run build:tv
     startCommand: npm start
     autoDeploy: true

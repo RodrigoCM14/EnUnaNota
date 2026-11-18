@@ -3,3 +3,6 @@ node_modules/
 *.log
 server.log
 server.err.log
+
+# Versión de prueba para TV, generada a partir de la interfaz principal
+public/tv/
