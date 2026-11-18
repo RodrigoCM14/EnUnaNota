@@ -105,4 +105,5 @@ document.getElementById('tvDeviceSelect').addEventListener('change', function (e
   activePlaybackDeviceId = event.target.value;
   const option = event.target.options[event.target.selectedIndex];
   document.getElementById('tvDeviceStatus').textContent = option && option.value ? 'El audio sonará en ' + option.textContent + '.' : 'Selecciona un dispositivo disponible.';
+  if (option && option.value) document.getElementById('playRound').focus();
 });

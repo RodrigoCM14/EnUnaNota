@@ -46,7 +46,9 @@
       return;
     }
     var active = document.activeElement;
-    if (active && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName)) return;
+    // El selector conserva arriba/abajo para elegir. Izquierda/derecha permiten salir.
+    if (active && active.tagName === "SELECT" && code !== 37 && code !== 39) return;
+    if (active && /^(INPUT|TEXTAREA)$/.test(active.tagName)) return;
     var directions = {37: [-1, 0], 38: [0, -1], 39: [1, 0], 40: [0, 1]};
     if (directions[code]) { event.preventDefault(); navigate(directions[code][0], directions[code][1]); }
   });
