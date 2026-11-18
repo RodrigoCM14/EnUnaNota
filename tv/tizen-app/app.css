@@ -1,0 +1,9 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #FEF6EF; color: #01215A; font: 24px Arial, sans-serif; }
+main { min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 40px; }
+img { width: 180px; height: 180px; object-fit: contain; }
+h1 { font-size: 54px; margin: 18px 0 8px; }
+p { margin: 12px; }
+.hint { color: #65768d; font-size: 19px; }
+button { border: 0; border-radius: 12px; margin: 18px; padding: 16px 28px; background: #01215A; color: #E0F6FE; font-size: 24px; cursor: pointer; }
+button:focus { outline: 4px solid #71E5FE; outline-offset: 5px; }

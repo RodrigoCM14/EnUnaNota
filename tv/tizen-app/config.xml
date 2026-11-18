@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://enunanota-tv.onrender.com/app" version="0.1.0" viewmodes="maximized">
+  <tizen:application id="EnUnaNota1.EnUnaNotaTV" package="EnUnaNota1" required_version="5.0"/>
+  <content src="index.html"/>
+  <icon src="icon.png"/>
+  <name>En Una Nota</name>
+  <description>Versión de prueba para Samsung TV.</description>
+  <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"/>
+  <tizen:profile name="tv-samsung"/>
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <access origin="https://enunanota-tv.onrender.com" subdomains="false"/>
+  <access origin="https://accounts.spotify.com" subdomains="false"/>
+  <access origin="https://api.spotify.com" subdomains="false"/>
+  <access origin="https://scdn.co" subdomains="true"/>
+  <access origin="https://api.qrserver.com" subdomains="false"/>
+  <tizen:allow-navigation>enunanota-tv.onrender.com accounts.spotify.com *.spotify.com</tizen:allow-navigation>
+  <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+</widget>

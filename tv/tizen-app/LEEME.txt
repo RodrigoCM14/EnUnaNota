@@ -1,0 +1,16 @@
+EN UNA NOTA — LANZADOR DE PRUEBA PARA SAMSUNG TV
+
+Este directorio contiene FUENTES para un proyecto Tizen Web. No es un archivo .wgt firmado ni una aplicación instalada.
+Abre https://enunanota-tv.onrender.com/tv/ desde la app. Necesita internet; el servicio de prueba es independiente de la web principal.
+
+IMPORTANTE: Es un prototipo. No ha sido ejecutado en una Samsung TV ni se ha comprobado que Tizen permita la navegación alojada o que Spotify funcione allí.
+
+1. Instala Tizen Studio, Samsung TV Extensions y Samsung Certificate Extension.
+2. En Tizen Studio crea un proyecto Tizen Web básico para Samsung TV. Selecciona la versión 5.0 si está disponible y nómbralo EnUnaNotaTV.
+3. En la carpeta raíz del proyecto creado, copia y reemplaza los archivos config.xml, index.html, app.css, app.js e icon.png de este directorio. En Tizen Studio pulsa F5 sobre el proyecto para actualizarlo. No borres los archivos ocultos que Tizen Studio haya creado.
+4. Activa Developer Mode en la TV y conéctala por Device Manager desde la misma red que la laptop.
+5. Crea un perfil de certificado Samsung para TV en Certificate Manager, con el DUID de la TV. Conserva los certificados y contraseñas en tu laptop; no los compartas.
+6. Con el perfil activo y la TV conectada, selecciona el proyecto y usa Run As > Tizen Web Application para generar, firmar e instalar la prueba.
+7. La aplicación intenta abrir https://enunanota-tv.onrender.com/tv/. El URI de retorno de Spotify debe estar registrado exactamente con /tv/ al final. Luego hay que probar la conexión, el control remoto, el QR y el audio.
+
+Si Tizen Studio señala que el identificador del paquete o la configuración no son válidos, o si al abrir la app no navega a la página, anota el mensaje: la compatibilidad del lanzador alojado debe verificarse en el televisor. No es necesario restablecer Smart Hub para esta prueba.
