@@ -45,25 +45,15 @@
           </div>
           <button id="connectSpotify" class="primary" type="button" data-i18n="host.connectSpotify">Conectar Spotify</button>
           <button id="disconnectSpotify" type="button" data-i18n="host.disconnectSpotify">Desconectar</button>
+          <button id="openPlaylists" type="button" aria-haspopup="dialog" aria-controls="playlistModal" data-i18n="host.selectPlaylist">Elegir playlist</button>
+          <button id="openRules" type="button" aria-haspopup="dialog" aria-controls="rulesModal" data-i18n="host.rules">Reglas</button>
         </div>
       </section>
 
       <section class="workspace">
-        <aside class="panel setup-panel">
-          <h2 data-i18n="common.playlist">Playlist</h2>
-          <input id="clientId" type="hidden">
-          <input id="roomId" type="hidden" value="default">
-          <div class="playlist-picker">
-            <div class="picker-head">
-              <span data-i18n="host.yourPlaylists">Tus playlists</span>
-              <button id="refreshPlaylists" type="button" data-i18n="host.refresh">Actualizar</button>
-            </div>
-            <div id="playlistGrid" class="playlist-grid">
-              <p class="muted" data-i18n="host.connectToSeePlaylists">Conecta Spotify para ver tus playlists.</p>
-            </div>
-          </div>
-          <strong id="joinUrl" class="visually-hidden" data-i18n="host.openPlayer">Abre /player</strong>
-        </aside>
+        <input id="clientId" type="hidden">
+        <input id="roomId" type="hidden" value="default">
+        <strong id="joinUrl" class="visually-hidden" data-i18n="host.openPlayer">Abre /player</strong>
 
         <section class="stage">
           <div class="playlist-banner" id="playlistBanner" data-i18n="common.playlistUnloaded">Playlist sin cargar</div>
@@ -126,6 +116,19 @@
           <button id="chooseAnotherPlaylist" type="button" data-i18n="host.choosePlaylist">Elegir otra playlist</button>
         </div>
         <button id="closeWinnerModal" type="button" data-i18n="host.close">Cerrar</button>
+      </div>
+    </div>
+
+    <div class="playlist-modal hidden" id="playlistModal" role="dialog" aria-modal="true" aria-labelledby="playlistTitle">
+      <div class="playlist-modal-card">
+        <div class="playlist-modal-head">
+          <div><p class="eyebrow" data-i18n="host.yourPlaylists">Tus playlists</p><h2 id="playlistTitle" data-i18n="host.selectPlaylist">Elegir playlist</h2></div>
+          <button id="closePlaylists" type="button" aria-label="Cerrar" data-i18n-aria-label="host.close">✕</button>
+        </div>
+        <div class="playlist-modal-actions"><button id="refreshPlaylists" type="button" data-i18n="host.refresh">Actualizar</button></div>
+        <div id="playlistGrid" class="playlist-grid">
+          <p class="muted" data-i18n="host.connectToSeePlaylists">Conecta Spotify para ver tus playlists.</p>
+        </div>
       </div>
     </div>
 

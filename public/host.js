@@ -30,6 +30,10 @@ const elements = {
   loadPlaylist: $("#loadPlaylist"),
   refreshPlaylists: $("#refreshPlaylists"),
   playlistGrid: $("#playlistGrid"),
+  playlistModal: $("#playlistModal"),
+  openPlaylists: $("#openPlaylists"),
+  closePlaylists: $("#closePlaylists"),
+  openRules: $("#openRules"),
   playRound: $("#playRound"),
   replayRound: $("#replayRound"),
   revealAnswer: $("#revealAnswer"),
@@ -88,7 +92,6 @@ let songPlaybackMode = "";
 let phoneBaseUrl = "";
 let pausePlaybackTimeoutId = null;
 let lastHostCommandId = "";
-let connectAfterRules = false;
 let continuationEndsAt = 0;
 let finalSongWinnerId = "";
 let manualTimerIntervalId = null;
@@ -322,6 +325,10 @@ async function connectSpotify() {
 
 async function disconnectSpotify() {
   await fetch("/api/spotify-logout", { method: "POST" });
+  const emptyPlaylists = document.createElement("p");
+  emptyPlaylists.className = "muted";
+  emptyPlaylists.textContent = t("host.connectToSeePlaylists");
+  elements.playlistGrid.replaceChildren(emptyPlaylists);
   localStorage.removeItem("spotify_access_token");
   localStorage.removeItem("spotify_refresh_token");
   localStorage.removeItem("spotify_expires_at");
@@ -770,6 +777,7 @@ async function choosePlaylist(playlistId) {
   if (elements.playlistUrl) elements.playlistUrl.value = `https://open.spotify.com/playlist/${playlistId}`;
   localStorage.setItem("spotify_playlist_url", `https://open.spotify.com/playlist/${playlistId}`);
   await loadPlaylist(playlistId);
+  closePlaylistModal();
 }
 
 async function playRound() {
@@ -1054,8 +1062,7 @@ async function continueMatch() {
 
 function chooseAnotherPlaylist() {
   closeWinnerModal();
-  document.querySelector(".setup-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  elements.refreshPlaylists?.focus();
+  openPlaylistModal();
   setStatus("host.status.choosePlaylistRestart");
 }
 
@@ -1117,15 +1124,29 @@ function renderConfetti() {
 
 function closeRulesModal() {
   elements.rulesModal?.classList.add("hidden");
-  if (connectAfterRules) {
-    connectAfterRules = false;
-    connectSpotify().catch(error => setStatus(error.message || t("host.status.cannotOpenSpotify")));
-  }
+  elements.openRules?.focus();
 }
 
-function showRulesBeforeConnect() {
-  connectAfterRules = true;
+function showRules() {
   elements.rulesModal?.classList.remove("hidden");
+  elements.closeRulesModal?.focus();
+}
+
+function closePlaylistModal() {
+  if (elements.playlistModal?.classList.contains("hidden")) return;
+  elements.playlistModal?.classList.add("hidden");
+  elements.openPlaylists?.focus();
+}
+
+function openPlaylistModal() {
+  elements.playlistModal?.classList.remove("hidden");
+  elements.closePlaylists?.focus();
+  if (validToken() && !elements.playlistGrid.querySelector(".playlist-card")) {
+    loadUserPlaylists().catch(error => {
+      elements.playlistGrid.textContent = error.message;
+      setStatus(error.message);
+    });
+  }
 }
 
 async function processHostCommand(command) {
@@ -1307,7 +1328,39 @@ function refreshLanguage() {
 refreshLanguage();
 syncWelcomeForSession();
 
-elements.connectSpotify?.addEventListener("click", showRulesBeforeConnect);
+elements.connectSpotify?.addEventListener("click", () => connectSpotify().catch(error => setStatus(error.message || t("host.status.cannotOpenSpotify"))));
+elements.openRules?.addEventListener("click", showRules);
+elements.openPlaylists?.addEventListener("click", openPlaylistModal);
+elements.closePlaylists?.addEventListener("click", closePlaylistModal);
+elements.playlistModal?.addEventListener("click", event => {
+  if (event.target === elements.playlistModal) closePlaylistModal();
+});
+elements.rulesModal?.addEventListener("click", event => {
+  if (event.target === elements.rulesModal) closeRulesModal();
+});
+document.addEventListener("keydown", event => {
+  const playlistOpen = !elements.playlistModal?.classList.contains("hidden");
+  const rulesOpen = !elements.rulesModal?.classList.contains("hidden");
+  if (event.key === "Escape") {
+    if (playlistOpen) closePlaylistModal();
+    else if (rulesOpen) closeRulesModal();
+    return;
+  }
+  if (event.key !== "Tab" || (!playlistOpen && !rulesOpen)) return;
+  const modal = playlistOpen ? elements.playlistModal : elements.rulesModal;
+  const focusable = [...modal.querySelectorAll("button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])")]
+    .filter(element => element.getClientRects().length);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) {
+    event.preventDefault();
+    first.focus();
+  }
+});
 elements.closeWelcome?.addEventListener("click", () => hideWelcome({ remember: true }));
 elements.activateScreenPlayer?.addEventListener("click", () => activateScreenPlayer().catch(error => setStatus(error.message || t("host.status.activateScreenFailed"))));
 elements.disconnectSpotify?.addEventListener("click", () => disconnectSpotify().catch(error => setStatus(error.message || t("host.status.disconnectFailed"))));

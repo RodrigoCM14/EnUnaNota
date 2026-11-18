@@ -33,6 +33,8 @@ const translations = {
     "host.reviewingTitle": "El host esta revisando",
     "host.reviewingDetail": "Espera la decision del anfitrion.",
     "host.yourPlaylists": "Tus playlists",
+    "host.selectPlaylist": "Elegir playlist",
+    "host.rules": "Reglas",
     "host.refresh": "Actualizar",
     "host.refreshPlaylists": "Actualizar playlists",
     "host.connectToSeePlaylists": "Conecta Spotify para ver tus playlists.",
